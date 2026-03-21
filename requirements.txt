@@ -1,0 +1,30 @@
+# Kafka
+confluent-kafka==2.4.0
+
+# Data validation
+pydantic==2.7.1
+pydantic-settings==2.3.3
+
+# Environment
+python-dotenv==1.0.1
+
+# Storage
+sqlalchemy==2.0.30
+alembic==1.13.1
+psycopg2-binary==2.9.9
+
+# Cache (Valkey / Redis compatible)
+redis==5.0.4
+
+# ML
+scikit-learn==1.5.0
+numpy==1.26.4
+pandas==2.2.2
+joblib==1.4.2
+
+# API
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+
+# Utilities
+python-dateutil==2.9.0
