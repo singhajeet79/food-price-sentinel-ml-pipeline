@@ -57,6 +57,10 @@ from kafka.structs import OffsetAndMetadata
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from processing.features import FeatureEngineer, FeatureVector
 
+# Add after the existing imports
+from detection.score import Scorer
+_scorer = Scorer()
+
 load_dotenv()
 logging.basicConfig(
     level=logging.INFO,
@@ -151,21 +155,10 @@ def persist_feature_vector(fv: FeatureVector) -> None:
 # ---------------------------------------------------------------------------
 
 def score_feature_vector(fv: FeatureVector) -> Optional[float]:
-    """
-    Pass the feature vector to the anomaly detection model.
-
-    Stub implementation — returns None (no score).
-    Replace with real scorer once detection/ is wired up:
-
-        from detection.score import Scorer
-        scorer = Scorer.load()
-        return scorer.score(fv)
-    """
-    if DRY_RUN:
-        log.debug("[DRY RUN] Would score feature vector: %s/%s", fv.commodity, fv.region)
+    result = _scorer.score(fv)
+    if result is None:
         return None
-    log.debug("score_feature_vector: %s/%s (stub — wire up detection layer)", fv.commodity, fv.region)
-    return None
+    return result.normalised_score
 
 
 # ---------------------------------------------------------------------------
