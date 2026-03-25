@@ -4,3 +4,6 @@ For Aiven, the service name is used in the hostname and cannot be changed after 
 ```
 food-price-kafka
 certs/
+detection/models/*.pkl
+detection/models/*.meta.json
+detection/models/latest.txt
