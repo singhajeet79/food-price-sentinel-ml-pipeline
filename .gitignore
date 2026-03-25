@@ -1,0 +1,6 @@
+**3. Kafka service name**
+
+For Aiven, the service name is used in the hostname and cannot be changed after creation. Recommendations in order of preference:
+```
+food-price-kafka
+certs/
