@@ -59,7 +59,10 @@ from processing.features import FeatureEngineer, FeatureVector
 
 # Add after the existing imports
 from detection.score import Scorer
+from alerting.alert_writer import AlertWriter
+
 _scorer = Scorer()
+_alert_writer = AlertWriter()
 
 load_dotenv()
 logging.basicConfig(
@@ -158,6 +161,8 @@ def score_feature_vector(fv: FeatureVector) -> Optional[float]:
     result = _scorer.score(fv)
     if result is None:
         return None
+    if result.is_anomaly:
+        _alert_writer.write(scored_result=result, feature_vector=fv)
     return result.normalised_score
 
 
