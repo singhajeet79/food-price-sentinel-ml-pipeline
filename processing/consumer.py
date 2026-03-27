@@ -61,6 +61,9 @@ from processing.features import FeatureEngineer, FeatureVector
 from detection.score import Scorer
 from alerting.alert_writer import AlertWriter
 
+from storage.models import PriceEvent, FeatureVector as FeatureVectorORM, AnomalyLog
+from storage.db import get_session
+
 _scorer = Scorer()
 _alert_writer = AlertWriter()
 
@@ -134,24 +137,17 @@ def build_consumer() -> KafkaConsumer:
 # Storage stub (replaced by real SQLAlchemy calls in storage/db.py)
 # ---------------------------------------------------------------------------
 
-def persist_feature_vector(fv: FeatureVector) -> None:
-    """
-    Write the feature vector to PostgreSQL.
-
-    Stub implementation — logs the vector and returns.
-    Replace with a real SQLAlchemy session call once storage/ is wired up:
-
-        from storage.db import get_session
-        from storage.models import FeatureVectorORM
+def persist_feature_vector(fv: FeatureVector) -> Optional[int]:
+    """Write feature vector to PostgreSQL. Returns the inserted row ID."""
+    try:
         with get_session() as session:
-            session.add(FeatureVectorORM.from_feature_vector(fv))
-            session.commit()
-    """
-    if DRY_RUN:
-        log.debug("[DRY RUN] Would persist feature vector: %s/%s", fv.commodity, fv.region)
-        return
-    log.debug("persist_feature_vector: %s/%s (stub — wire up storage layer)", fv.commodity, fv.region)
-
+            row = FeatureVectorORM.from_feature_vector(fv)
+            session.add(row)
+            session.flush()
+            return row.id
+    except Exception as exc:
+        log.error("Failed to persist feature vector: %s", exc)
+        return None
 
 # ---------------------------------------------------------------------------
 # Scorer stub (replaced by detection/score.py)
@@ -161,10 +157,29 @@ def score_feature_vector(fv: FeatureVector) -> Optional[float]:
     result = _scorer.score(fv)
     if result is None:
         return None
-    if result.is_anomaly:
-        _alert_writer.write(scored_result=result, feature_vector=fv)
-    return result.normalised_score
 
+    alerted = False
+    suppressed = False
+    alert_payload = None
+
+    if result.is_anomaly:
+        written = _alert_writer.write(scored_result=result, feature_vector=fv)
+        alerted = written
+        suppressed = not written
+
+    try:
+        with get_session() as session:
+            log_row = AnomalyLog.from_scored_result(
+                scored_result=result,
+                alerted=alerted,
+                suppressed=suppressed,
+                alert_payload=alert_payload,
+            )
+            session.add(log_row)
+    except Exception as exc:
+        log.error("Failed to persist anomaly log: %s", exc)
+
+    return result.normalised_score
 
 # ---------------------------------------------------------------------------
 # Consumer lag tracking
@@ -346,7 +361,7 @@ def run() -> None:
                         )
 
                     # Track offset for manual commit
-                    offsets_to_commit[tp] = OffsetAndMetadata(msg.offset + 1, None)
+                    offsets_to_commit[tp] = OffsetAndMetadata(msg.offset + 1, None, -1)
 
             # Commit after processing the full batch (at-least-once semantics)
             if offsets_to_commit:
