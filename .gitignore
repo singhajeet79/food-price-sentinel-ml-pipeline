@@ -7,3 +7,16 @@ certs/
 detection/models/*.pkl
 detection/models/*.meta.json
 detection/models/latest.txt
+
+# Node/React Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.local
+.env
+*.log
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
