@@ -132,11 +132,10 @@ def _simulate_price(commodity: FoodCommodity, as_of: datetime) -> dict:
 
     unit_raw, conversion_factor = _UNIT_RAW[commodity]
 
-    # Convert raw unit price → per-tonne price
-    if unit_raw == "per_tonne":
-        price_usd = raw_price_per_unit
-    else:
-        price_usd = raw_price_per_unit * conversion_factor
+    # Baselines are always USD/tonne. conversion_factor converts the
+    # raw source unit back to per-tonne for the schema's unit_raw field.
+    # The simulation already works in per-tonne space so no conversion needed.
+    price_usd = raw_price_per_unit
 
     price_local = price_usd * _FX_RATE_USD_INR
 
