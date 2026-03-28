@@ -29,13 +29,13 @@ router = APIRouter()
 
 
 class BackendStatus(BaseModel):
-    status: str  # "ok" | "degraded" | "down"
+    status: str             # "ok" | "degraded" | "down"
     latency_ms: Optional[float] = None
     error: Optional[str] = None
 
 
 class HealthResponse(BaseModel):
-    status: str  # "healthy" | "degraded" | "unhealthy"
+    status: str             # "healthy" | "degraded" | "unhealthy"
     version: str = "1.0.0"
     backends: dict[str, BackendStatus]
 
@@ -43,7 +43,6 @@ class HealthResponse(BaseModel):
 def _check_valkey() -> BackendStatus:
     try:
         from api.dependencies import get_valkey_client
-
         client = get_valkey_client()
         start = time.monotonic()
         client.ping()
@@ -56,9 +55,7 @@ def _check_valkey() -> BackendStatus:
 def _check_postgres() -> BackendStatus:
     try:
         from sqlalchemy import text
-
         from api.dependencies import get_db_engine
-
         engine = get_db_engine()
         start = time.monotonic()
         with engine.connect() as conn:
@@ -76,7 +73,6 @@ def _check_kafka() -> BackendStatus:
     """
     try:
         from kafka import KafkaAdminClient
-
         start = time.monotonic()
         admin = KafkaAdminClient(
             bootstrap_servers=os.getenv("KAFKA_BOOTSTRAP_SERVERS"),
@@ -103,9 +99,9 @@ def health_check():
     503 if critically degraded (Valkey + PostgreSQL both down).
     """
     backends = {
-        "valkey": _check_valkey(),
+        "valkey":     _check_valkey(),
         "postgresql": _check_postgres(),
-        "kafka": _check_kafka(),
+        "kafka":      _check_kafka(),
     }
 
     down = [k for k, v in backends.items() if v.status == "down"]
@@ -126,3 +122,62 @@ def health_check():
         backends=backends,
     )
     return JSONResponse(content=response.model_dump(), status_code=status_code)
+
+
+@router.get("/drift")
+def get_drift_status():
+    """
+    Return the latest model drift signal from Valkey.
+
+    Written by detection/drift.py every DRIFT_CHECK_INTERVAL_HOURS.
+    Returns the most recent drift result across all model versions.
+
+    Signal values: STABLE | DRIFT | STALE | UNKNOWN
+    """
+    import json
+
+    try:
+        from api.dependencies import get_valkey_client
+
+        client = get_valkey_client()
+
+        # Scan for all drift keys — pick the most recently checked
+        cursor = 0
+        drift_keys = []
+        while True:
+            cursor, keys = client.scan(cursor=cursor, match="drift:*", count=50)
+            drift_keys.extend(keys)
+            if cursor == 0:
+                break
+
+        if not drift_keys:
+            return {
+                "signal": "UNKNOWN",
+                "reason": "No drift data available. Run detection/drift.py to generate.",
+                "model_version": None,
+                "checked_at": None,
+            }
+
+        # Parse all and return the most recently checked
+        results = []
+        for key in drift_keys:
+            raw = client.get(key)
+            if raw:
+                try:
+                    results.append(json.loads(raw))
+                except json.JSONDecodeError:
+                    continue
+
+        if not results:
+            return {"signal": "UNKNOWN", "reason": "Drift keys exist but values are empty."}
+
+        latest = max(results, key=lambda r: r.get("checked_at", ""))
+        return latest
+
+    except Exception as exc:
+        return {
+            "signal": "UNKNOWN",
+            "reason": f"Drift check unavailable: {exc}",
+            "model_version": None,
+            "checked_at": None,
+        }

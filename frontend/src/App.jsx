@@ -22,6 +22,15 @@ const COMMODITY_ICONS = {
   barley: "🌿",
 };
 
+
+// ─── Drift signal config ────────────────────────────────────────────────────
+const DRIFT_COLOR = {
+  STABLE:  { bg: "#0a1f0a", border: "#1a4a1a", text: "#4ade80", icon: "●" },
+  DRIFT:   { bg: "#1f1200", border: "#4a2a00", text: "#ff6b00", icon: "▲" },
+  STALE:   { bg: "#1f0000", border: "#4a0000", text: "#ff2d2d", icon: "■" },
+  UNKNOWN: { bg: "#0a0f0a", border: "#1a2a1a", text: "#3a5a3a", icon: "○" },
+};
+
 // ─── API hooks ──────────────────────────────────────────────────────────────
 function useApi(path, interval = POLL_MS) {
   const [data, setData] = useState(null);
@@ -85,6 +94,73 @@ function PulseRing({ active }) {
       verticalAlign: "middle",
       marginRight: 8,
     }} />
+  );
+}
+
+function DriftBanner({ drift }) {
+  if (!drift) return null;
+  const signal = drift.signal || "UNKNOWN";
+  const c = DRIFT_COLOR[signal] || DRIFT_COLOR.UNKNOWN;
+  const ago = drift.checked_at
+    ? Math.round((Date.now() - new Date(drift.checked_at)) / 60000)
+    : null;
+
+  return (
+    <div style={{
+      background: c.bg,
+      border: `1px solid ${c.border}`,
+      borderLeft: `3px solid ${c.text}`,
+      borderRadius: "2px",
+      padding: "10px 16px",
+      marginBottom: 16,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 16,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <span style={{ color: c.text, fontSize: 14, fontWeight: 700 }}>
+          {c.icon}
+        </span>
+        <div>
+          <span style={{
+            fontFamily: "'Barlow Condensed', sans-serif",
+            fontSize: 13, fontWeight: 700,
+            color: c.text, letterSpacing: "0.08em",
+            textTransform: "uppercase",
+          }}>
+            MODEL DRIFT: {signal}
+          </span>
+          <span style={{
+            fontSize: 11, color: "#3a5a3a",
+            marginLeft: 12, letterSpacing: "0.04em",
+          }}>
+            {drift.reason?.split(".")[0]}
+          </span>
+        </div>
+      </div>
+      <div style={{
+        display: "flex", gap: 20, fontSize: 10,
+        color: "#3a5a3a", letterSpacing: "0.06em",
+        fontFamily: "'IBM Plex Mono', monospace",
+        flexShrink: 0,
+      }}>
+        {drift.model_version && (
+          <span>MODEL <span style={{ color: c.text }}>{drift.model_version}</span></span>
+        )}
+        {drift.recent_p50 !== undefined && (
+          <span>P50 <span style={{ color: "#7aaa7a" }}>{drift.recent_p50?.toFixed(4)}</span></span>
+        )}
+        {drift.recent_rate !== undefined && (
+          <span>RATE <span style={{ color: "#7aaa7a" }}>{(drift.recent_rate * 100)?.toFixed(1)}%</span></span>
+        )}
+        {ago !== null && (
+          <span style={{ color: "#2a4a2a" }}>
+            {ago < 60 ? `${ago}m ago` : `${Math.round(ago/60)}h ago`}
+          </span>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -329,6 +405,7 @@ function CommodityRow({ commodity, count, avgScore }) {
 // ─── Main App ───────────────────────────────────────────────────────────────
 export default function App() {
   const { data: health }  = useApi("/health", 30000);
+  const { data: drift }   = useApi("/drift", 60000);
   const { data: alerts }  = useApi("/alerts/active");
   const { data: stats }   = useApi("/history/stats?days=1", POLL_MS);
   const { data: history } = useApi("/history?days=1&page_size=100", POLL_MS);
@@ -388,6 +465,9 @@ export default function App() {
 
         {/* Status bar */}
         <StatusBar health={health} />
+
+        {/* Drift banner */}
+        <DriftBanner drift={drift} />
 
         {/* Header */}
         <div style={{
