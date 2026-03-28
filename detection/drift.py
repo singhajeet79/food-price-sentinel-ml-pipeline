@@ -61,7 +61,7 @@ log = logging.getLogger("drift")
 ANOMALY_THRESHOLD = float(os.getenv("ANOMALY_THRESHOLD", "0.55"))
 MEDIAN_DRIFT_THRESHOLD = 0.08  # p50 shift > this triggers DRIFT
 RATE_DRIFT_THRESHOLD = 0.20  # anomaly rate shift > this triggers DRIFT
-STALE_RATE_THRESHOLD = 0.02  # anomaly rate < this triggers STALE
+STALE_RATE_THRESHOLD = 0.001  # anomaly rate < this triggers STALE
 VALKEY_DRIFT_TTL = 3600 * 6  # 6h TTL on drift alerts
 
 
