@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: food-price-sentinel
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - storage.yaml
+  - consumer.yaml
+  - api.yaml
+  - retrain-cronjob.yaml
+commonLabels:
+  app.kubernetes.io/name: food-price-sentinel
+  app.kubernetes.io/version: "1.2.0"

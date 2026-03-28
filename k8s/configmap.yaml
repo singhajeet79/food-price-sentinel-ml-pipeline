@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sentinel-config
+  namespace: food-price-sentinel
+data:
+  KAFKA_TOPIC_FOOD: "food-prices"
+  KAFKA_TOPIC_ENERGY: "energy-prices"
+  KAFKA_TOPIC_FERTILIZER: "fertilizer-supply"
+  KAFKA_TOPIC_ALERTS: "price-alerts"
+  KAFKA_CONSUMER_GROUP: "food-price-sentinel-processor"
+  KAFKA_AUTO_OFFSET_RESET: "latest"
+  KAFKA_SECURITY_PROTOCOL: "SSL"
+  ROLLING_WINDOW_DAYS: "7"
+  LONG_WINDOW_DAYS: "30"
+  ENERGY_LAG_DAYS: "14"
+  STALE_DATA_THRESHOLD_MINUTES: "180"
+  ALERT_COOLDOWN_SECONDS: "21600"
+  ANOMALY_THRESHOLD: "0.55"
+  RETRAIN_INTERVAL_HOURS: "24"
+  DRIFT_CHECK_INTERVAL_HOURS: "6"
+  RETRAIN_DAYS: "90"
+  RETRAIN_MIN_SAMPLES: "500"
+  RETRAIN_DRIFT_TOLERANCE: "0.15"
+  MODELS_DIR: "/app/detection/models"
+  VALKEY_TLS: "true"
+  LOG_LEVEL: "INFO"
