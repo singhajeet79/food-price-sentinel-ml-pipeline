@@ -31,8 +31,7 @@ from typing import Iterator
 from confluent_kafka import Producer
 from dotenv import load_dotenv
 
-from processing.schemas import (DataSource, FertilizerCommodity,
-                                FertilizerSupplyEvent)
+from processing.schemas import DataSource, FertilizerCommodity, FertilizerSupplyEvent
 
 load_dotenv()
 logging.basicConfig(

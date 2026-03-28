@@ -55,6 +55,7 @@ from kafka.structs import OffsetAndMetadata
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from alerting.alert_writer import AlertWriter
+
 # Add after the existing imports
 from detection.score import Scorer
 from processing.features import FeatureEngineer, FeatureVector
