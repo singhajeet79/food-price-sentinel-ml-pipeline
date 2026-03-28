@@ -41,14 +41,12 @@ import os
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from detection.model import SentinelModel, MODELS_DIR
-from detection.score import Scorer
 
 logging.basicConfig(
     level=logging.INFO,

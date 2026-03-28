@@ -12,8 +12,8 @@ load_dotenv()
 # Add project root to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from storage.db import Base
-import storage.models  # noqa: F401 — register all ORM models
+from storage.db import Base  # noqa: E402
+import storage.models  # noqa: F401, E402 — register all ORM models
 
 config = context.config
 

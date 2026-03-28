@@ -114,7 +114,7 @@ def get_history(
     query = session.query(AnomalyLog).filter(AnomalyLog.detected_at >= cutoff)
 
     if anomalies_only:
-        query = query.filter(AnomalyLog.is_anomaly == True)
+        query = query.filter(AnomalyLog.is_anomaly)
 
     total = query.count()
     records = (
@@ -146,12 +146,12 @@ def get_stats(
 
     base_q = session.query(AnomalyLog).filter(
         AnomalyLog.detected_at >= cutoff,
-        AnomalyLog.is_anomaly == True,
+        AnomalyLog.is_anomaly,
     )
 
     total_anomalies = base_q.count()
-    total_alerts    = base_q.filter(AnomalyLog.alerted == True).count()
-    total_suppressed = base_q.filter(AnomalyLog.suppressed == True).count()
+    total_alerts    = base_q.filter(AnomalyLog.alerted).count()
+    total_suppressed = base_q.filter(AnomalyLog.suppressed).count()
 
     # By severity
     severity_rows = (
@@ -160,7 +160,7 @@ def get_stats(
             func.count(AnomalyLog.id).label("count"),
             func.avg(AnomalyLog.anomaly_score).label("avg_score"),
         )
-        .filter(AnomalyLog.detected_at >= cutoff, AnomalyLog.is_anomaly == True)
+        .filter(AnomalyLog.detected_at >= cutoff, AnomalyLog.is_anomaly)
         .group_by(AnomalyLog.severity)
         .all()
     )
@@ -179,7 +179,7 @@ def get_stats(
             AnomalyLog.commodity,
             func.count(AnomalyLog.id).label("count"),
         )
-        .filter(AnomalyLog.detected_at >= cutoff, AnomalyLog.is_anomaly == True)
+        .filter(AnomalyLog.detected_at >= cutoff, AnomalyLog.is_anomaly)
         .group_by(AnomalyLog.commodity)
         .order_by(desc("count"))
         .limit(5)

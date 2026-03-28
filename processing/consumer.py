@@ -47,7 +47,6 @@ import os
 import signal
 import sys
 import time
-from datetime import datetime, timezone
 from typing import Optional
 
 from dotenv import load_dotenv
@@ -61,7 +60,7 @@ from processing.features import FeatureEngineer, FeatureVector
 from detection.score import Scorer
 from alerting.alert_writer import AlertWriter
 
-from storage.models import PriceEvent, FeatureVector as FeatureVectorORM, AnomalyLog
+from storage.models import FeatureVector as FeatureVectorORM, AnomalyLog
 from storage.db import get_session
 
 _scorer = Scorer()

@@ -104,8 +104,6 @@ def _infer_contributing_factors(
     fert_delta   = snap.get("fertilizer_index_delta", 0.0)
     momentum     = snap.get("momentum", 0.0)
     vol          = snap.get("rolling_30d_std", 0.0)
-    sap          = snap.get("seasonal_adjusted_price", 0.0)
-    avg_7d       = snap.get("rolling_7d_avg", 0.0)
 
     if energy_corr > 0.60:
         factors.append("energy_spike")

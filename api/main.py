@@ -31,8 +31,8 @@ logging.basicConfig(
 )
 log = logging.getLogger("api")
 
-from api.routes import alerts, health, history
-from api.dependencies import get_valkey_client, get_db_engine
+from api.routes import alerts, health, history  # noqa: E402
+from api.dependencies import get_valkey_client, get_db_engine  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # App

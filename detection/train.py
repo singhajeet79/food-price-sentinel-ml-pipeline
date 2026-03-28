@@ -43,16 +43,13 @@ from __future__ import annotations
 import argparse
 import logging
 import os
-import random
 import sys
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from detection.model import SentinelModel, FEATURE_NAMES, N_FEATURES, MODELS_DIR
-from processing.features import FeatureEngineer, get_seasonal_index
+from detection.model import SentinelModel, MODELS_DIR
 
 logging.basicConfig(
     level=logging.INFO,

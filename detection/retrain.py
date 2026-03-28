@@ -45,7 +45,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from detection.model import SentinelModel, MODELS_DIR, FEATURE_NAMES
+from detection.model import SentinelModel, MODELS_DIR
 
 logging.basicConfig(
     level=logging.INFO,
@@ -97,7 +97,7 @@ def load_feature_vectors(days: int) -> np.ndarray:
             .filter(
                 and_(
                     FeatureVector.computed_at >= cutoff,
-                    FeatureVector.is_low_confidence == False,
+                    ~FeatureVector.is_low_confidence,
                 )
             )
             .all()

@@ -23,7 +23,7 @@ from typing import Optional
 from sqlalchemy import (
     BigInteger, Boolean, Column, DateTime, Float,
     ForeignKey, Integer, Numeric, SmallInteger,
-    String, Text, UniqueConstraint, Index,
+    String, Table, Text, Index,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
@@ -265,8 +265,6 @@ class GeopoliticalEvent(Base):
 # ---------------------------------------------------------------------------
 # anomaly_geo_tags  (association table)
 # ---------------------------------------------------------------------------
-
-from sqlalchemy import Table
 
 anomaly_geo_tags = Table(
     "anomaly_geo_tags",
