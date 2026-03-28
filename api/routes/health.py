@@ -56,6 +56,7 @@ def _check_valkey() -> BackendStatus:
 def _check_postgres() -> BackendStatus:
     try:
         from sqlalchemy import text
+
         from api.dependencies import get_db_engine
 
         engine = get_db_engine()

@@ -54,14 +54,13 @@ from kafka import KafkaConsumer, TopicPartition
 from kafka.structs import OffsetAndMetadata
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from processing.features import FeatureEngineer, FeatureVector
-
+from alerting.alert_writer import AlertWriter
 # Add after the existing imports
 from detection.score import Scorer
-from alerting.alert_writer import AlertWriter
-
-from storage.models import FeatureVector as FeatureVectorORM, AnomalyLog
+from processing.features import FeatureEngineer, FeatureVector
 from storage.db import get_session
+from storage.models import AnomalyLog
+from storage.models import FeatureVector as FeatureVectorORM
 
 _scorer = Scorer()
 _alert_writer = AlertWriter()

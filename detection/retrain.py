@@ -45,7 +45,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from detection.model import SentinelModel, MODELS_DIR
+from detection.model import MODELS_DIR, SentinelModel
 
 logging.basicConfig(
     level=logging.INFO,
@@ -86,9 +86,10 @@ def load_feature_vectors(days: int) -> np.ndarray:
 
     load_dotenv()
 
+    from sqlalchemy import and_
+
     from storage.db import get_session
     from storage.models import FeatureVector
-    from sqlalchemy import and_
 
     cutoff = datetime.now(tz=timezone.utc) - timedelta(days=days)
 

@@ -46,7 +46,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from detection.model import SentinelModel, MODELS_DIR
+from detection.model import MODELS_DIR, SentinelModel
 
 logging.basicConfig(
     level=logging.INFO,

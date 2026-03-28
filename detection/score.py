@@ -46,7 +46,7 @@ if sys_path_hack:
 
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from detection.model import SentinelModel, MODELS_DIR  # noqa: E402
+from detection.model import MODELS_DIR, SentinelModel  # noqa: E402
 from processing.features import FeatureVector  # noqa: E402
 
 log = logging.getLogger(__name__)
