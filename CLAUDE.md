@@ -55,7 +55,7 @@ An end-to-end **MLOps streaming pipeline** with four layers:
 
 ```
 food-price-sentinel/
-├── CLAUDE.md                  # ← You are here
+├── CLAUDE.md                  
 ├── README.md
 ├── docker-compose.yml
 ├── .env.example

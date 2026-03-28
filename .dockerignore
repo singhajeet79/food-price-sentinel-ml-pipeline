@@ -1,0 +1,66 @@
+# ── Git ─────────────────────────────────────────────
+.git
+.gitignore
+.gitattributes
+
+# ── Python ──────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+*.whl
+build/
+dist/
+
+# ── Virtual environments ────────────────────────────
+.venv/
+venv/
+env/
+
+# ── IDE / Editor ───────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── OS junk ────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Logs ───────────────────────────────────────────
+*.log
+
+# ── Local config / secrets ─────────────────────────
+.env
+.env.*
+certs/
+*.pem
+*.key
+
+# ── Docker / compose overrides ─────────────────────
+docker-compose.override.yml
+
+# ── Tests (optional for runtime image) ─────────────
+tests/
+
+# ── Docs / non-runtime files ───────────────────────
+README.md
+CLAUDE.md
+
+# ── Kubernetes manifests (not needed in image) ─────
+k8s/
+
+# ── Node / frontend build artifacts ────────────────
+frontend/node_modules/
+frontend/build/
+
+# ── Data / models (IMPORTANT) ──────────────────────
+detection/models/*
+!detection/models/.keep
+
+# ── Misc ───────────────────────────────────────────
+*.sqlite
+*.db

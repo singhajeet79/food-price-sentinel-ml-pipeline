@@ -1,0 +1,119 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: retrain
+  namespace: food-price-sentinel
+  labels:
+    app: retrain
+    component: mlops
+spec:
+  schedule: "0 2 * * *"       # 02:00 UTC daily
+  concurrencyPolicy: Forbid   # never run two retrains simultaneously
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: retrain
+            component: mlops
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: retrain
+              image: ghcr.io/singhajeet79/food-price-sentinel:latest
+              imagePullPolicy: Always
+              command:
+                - python
+                - detection/retrain.py
+                - --days
+                - "90"
+                - --version
+                - auto
+              env:
+                - name: PYTHONPATH
+                  value: "/app"
+              envFrom:
+                - configMapRef:
+                    name: sentinel-config
+                - secretRef:
+                    name: sentinel-secrets
+              volumeMounts:
+                - name: models
+                  mountPath: /app/detection/models
+              resources:
+                requests:
+                  cpu: "500m"
+                  memory: "512Mi"
+                limits:
+                  cpu: "2000m"
+                  memory: "2Gi"
+          volumes:
+            - name: models
+              persistentVolumeClaim:
+                claimName: sentinel-models-pvc
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: drift-check
+  namespace: food-price-sentinel
+  labels:
+    app: drift-check
+    component: mlops
+spec:
+  schedule: "0 */6 * * *"     # every 6 hours
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 5
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app: drift-check
+            component: mlops
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: drift-check
+              image: ghcr.io/singhajeet79/food-price-sentinel:latest
+              imagePullPolicy: Always
+              command:
+                - python
+                - detection/drift.py
+                - --window-hours
+                - "6"
+                - --write-valkey
+              env:
+                - name: PYTHONPATH
+                  value: "/app"
+              envFrom:
+                - configMapRef:
+                    name: sentinel-config
+                - secretRef:
+                    name: sentinel-secrets
+              volumeMounts:
+                - name: certs
+                  mountPath: /app/certs
+                  readOnly: true
+                - name: models
+                  mountPath: /app/detection/models
+                  readOnly: true
+              resources:
+                requests:
+                  cpu: "200m"
+                  memory: "256Mi"
+                limits:
+                  cpu: "500m"
+                  memory: "512Mi"
+          volumes:
+            - name: certs
+              secret:
+                secretName: sentinel-kafka-certs
+            - name: models
+              persistentVolumeClaim:
+                claimName: sentinel-models-pvc

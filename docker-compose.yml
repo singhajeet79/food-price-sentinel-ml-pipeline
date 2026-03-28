@@ -1,0 +1,119 @@
+# Local development stack — uses PLAINTEXT Kafka (no SSL)
+# For Aiven-connected dev, set env vars in .env instead
+
+version: "3.9"
+
+services:
+  # ── Kafka (Redpanda — lightest local option) ───────────────────────────────
+  redpanda:
+    image: redpandadata/redpanda:latest
+    container_name: sentinel-redpanda
+    ports:
+      - "9092:9092"
+      - "9644:9644"
+    command:
+      - redpanda
+      - start
+      - --smp=1
+      - --memory=512M
+      - --overprovisioned
+      - --kafka-addr=PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr=PLAINTEXT://localhost:9092
+    healthcheck:
+      test: ["CMD", "rpk", "cluster", "info"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Valkey (Redis-compatible) ─────────────────────────────────────────────
+  valkey:
+    image: valkey/valkey:latest
+    container_name: sentinel-valkey
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── PostgreSQL ─────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:17-alpine
+    container_name: sentinel-postgres
+    environment:
+      POSTGRES_USER: sentinel
+      POSTGRES_PASSWORD: sentinel
+      POSTGRES_DB: sentinel
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sentinel"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Consumer ───────────────────────────────────────────────────────────────
+  consumer:
+    build: .
+    container_name: sentinel-consumer
+    command: python processing/consumer.py
+    environment:
+      - PYTHONPATH=/app
+      - KAFKA_BOOTSTRAP_SERVERS=redpanda:9092
+      - KAFKA_SECURITY_PROTOCOL=PLAINTEXT
+      - VALKEY_HOST=valkey
+      - VALKEY_PORT=6379
+      - VALKEY_TLS=false
+      - POSTGRES_URL=postgresql://sentinel:sentinel@postgres:5432/sentinel
+    env_file: .env
+    depends_on:
+      redpanda:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    volumes:
+      - models_data:/app/detection/models
+
+  # ── API ────────────────────────────────────────────────────────────────────
+  api:
+    build: .
+    container_name: sentinel-api
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000
+    environment:
+      - PYTHONPATH=/app
+      - KAFKA_BOOTSTRAP_SERVERS=redpanda:9092
+      - KAFKA_SECURITY_PROTOCOL=PLAINTEXT
+      - VALKEY_HOST=valkey
+      - VALKEY_PORT=6379
+      - VALKEY_TLS=false
+      - POSTGRES_URL=postgresql://sentinel:sentinel@postgres:5432/sentinel
+    env_file: .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      - consumer
+    volumes:
+      - models_data:/app/detection/models
+
+  # ── Food producer ─────────────────────────────────────────────────────────
+  producer-food:
+    build: .
+    container_name: sentinel-producer-food
+    command: python ingestion/producer_food.py --interval 60
+    environment:
+      - PYTHONPATH=/app
+      - KAFKA_BOOTSTRAP_SERVERS=redpanda:9092
+      - KAFKA_SECURITY_PROTOCOL=PLAINTEXT
+    env_file: .env
+    depends_on:
+      redpanda:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  models_data:

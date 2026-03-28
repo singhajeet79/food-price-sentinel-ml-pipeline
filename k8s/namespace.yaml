@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: food-price-sentinel
+  labels:
+    app.kubernetes.io/name: food-price-sentinel
+    app.kubernetes.io/managed-by: kubectl

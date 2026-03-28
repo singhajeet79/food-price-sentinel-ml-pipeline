@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: consumer
+  namespace: food-price-sentinel
+  labels:
+    app: consumer
+    component: processing
+spec:
+  replicas: 1       # single consumer — Kafka partition assignment
+  selector:
+    matchLabels:
+      app: consumer
+  strategy:
+    type: Recreate  # not RollingUpdate — only one consumer per group
+  template:
+    metadata:
+      labels:
+        app: consumer
+        component: processing
+    spec:
+      containers:
+        - name: consumer
+          image: ghcr.io/singhajeet79/food-price-sentinel:latest
+          imagePullPolicy: Always
+          command: ["python", "processing/consumer.py"]
+          env:
+            - name: PYTHONPATH
+              value: "/app"
+          envFrom:
+            - configMapRef:
+                name: sentinel-config
+            - secretRef:
+                name: sentinel-secrets
+          volumeMounts:
+            - name: certs
+              mountPath: /app/certs
+              readOnly: true
+            - name: models
+              mountPath: /app/detection/models
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+          livenessProbe:
+            exec:
+              command: ["python", "-c", "import os; os.kill(1, 0)"]
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            failureThreshold: 3
+      volumes:
+        - name: certs
+          secret:
+            secretName: sentinel-kafka-certs
+        - name: models
+          persistentVolumeClaim:
+            claimName: sentinel-models-pvc
+      restartPolicy: Always

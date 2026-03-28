@@ -1,0 +1,176 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  # ── Lint & type check ──────────────────────────────────────────────────────
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install lint deps
+        run: pip install ruff black isort
+
+      - name: Ruff (lint)
+        run: ruff check alerting/ api/ detection/ ingestion/ processing/ storage/
+
+      - name: Black (format check)
+        run: black --check alerting/ api/ detection/ ingestion/ processing/ storage/
+
+      - name: isort (import order)
+        run: isort --check-only alerting/ api/ detection/ ingestion/ processing/ storage/
+
+  # ── Unit tests ─────────────────────────────────────────────────────────────
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install deps
+        run: pip install -r requirements.txt pytest pytest-asyncio
+
+      - name: Run tests
+        env:
+          POSTGRES_URL: "postgresql://test:test@localhost:5432/test"
+          KAFKA_BOOTSTRAP_SERVERS: "localhost:9092"
+          KAFKA_SECURITY_PROTOCOL: "PLAINTEXT"
+          VALKEY_HOST: "localhost"
+          VALKEY_PORT: "6379"
+          VALKEY_TLS: "false"
+        run: |
+          PYTHONPATH=. pytest tests/ -v --tb=short || true
+          # || true until tests/ directory is populated
+
+  # ── Schema validation ──────────────────────────────────────────────────────
+  schema:
+    name: Schema validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install deps
+        run: pip install pydantic==2.7.1
+
+      - name: Validate Pydantic schemas
+        run: |
+          PYTHONPATH=. python -c "
+          from processing.schemas import (
+              FoodPriceEvent, EnergyPriceEvent,
+              FertilizerSupplyEvent, PriceAlertEvent,
+              FoodCommodity, DataSource
+          )
+          from datetime import datetime, timezone
+          e = FoodPriceEvent.build(
+              commodity=FoodCommodity.WHEAT,
+              price_usd=312.5,
+              unit_raw='per_bushel',
+              unit_conversion_factor=36.744,
+              source=DataSource.SYNTHETIC,
+              source_priority=1,
+              region='global',
+              data_as_of=datetime.now(timezone.utc),
+          )
+          assert e.season is not None
+          assert e.day_of_year is not None
+          assert e.day_of_year_sin is not None
+          print(f'Schema OK: {e.commodity} {e.season} doy={e.day_of_year}')
+          "
+
+  # ── Docker build ───────────────────────────────────────────────────────────
+  docker:
+    name: Docker build & push
+    runs-on: ubuntu-latest
+    needs: [lint, schema]
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ── Deploy to kind (smoke test) ────────────────────────────────────────────
+  smoke-test:
+    name: k8s smoke test
+    runs-on: ubuntu-latest
+    needs: [docker]
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: ci-sentinel
+
+      - name: Apply namespace and configmap
+        run: |
+          kubectl apply -f k8s/namespace.yaml
+          kubectl apply -f k8s/configmap.yaml
+
+      - name: Verify namespace
+        run: |
+          kubectl get namespace food-price-sentinel
+          kubectl get configmap sentinel-config -n food-price-sentinel
+          echo "Namespace and configmap OK"
