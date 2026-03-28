@@ -61,14 +61,14 @@ log = logging.getLogger(__name__)
 # Config
 # ---------------------------------------------------------------------------
 
-VALKEY_HOST     = os.getenv("VALKEY_HOST", "localhost")
-VALKEY_PORT     = int(os.getenv("VALKEY_PORT", "6379"))
+VALKEY_HOST = os.getenv("VALKEY_HOST", "localhost")
+VALKEY_PORT = int(os.getenv("VALKEY_PORT", "6379"))
 VALKEY_PASSWORD = os.getenv("VALKEY_PASSWORD")
-VALKEY_TLS      = os.getenv("VALKEY_TLS", "false").lower() == "true"
+VALKEY_TLS = os.getenv("VALKEY_TLS", "false").lower() == "true"
 
-KAFKA_BOOTSTRAP  = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
-KAFKA_PROTOCOL   = os.getenv("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT")
-KAFKA_TOPIC      = os.getenv("KAFKA_TOPIC_ALERTS", "price-alerts")
+KAFKA_BOOTSTRAP = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
+KAFKA_PROTOCOL = os.getenv("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT")
+KAFKA_TOPIC = os.getenv("KAFKA_TOPIC_ALERTS", "price-alerts")
 
 ALERT_COOLDOWN_SECONDS = int(os.getenv("ALERT_COOLDOWN_SECONDS", "21600"))
 
@@ -80,6 +80,7 @@ VALKEY_KEY_PREFIX = "alert"
 # Valkey client factory
 # ---------------------------------------------------------------------------
 
+
 def _build_valkey_client():
     """
     Build a Redis-compatible client pointed at Valkey.
@@ -90,6 +91,7 @@ def _build_valkey_client():
     """
     try:
         import redis
+
         client = redis.Redis(
             host=VALKEY_HOST,
             port=VALKEY_PORT,
@@ -101,7 +103,9 @@ def _build_valkey_client():
             socket_timeout=5,
         )
         client.ping()
-        log.info("Valkey connected at %s:%d (tls=%s)", VALKEY_HOST, VALKEY_PORT, VALKEY_TLS)
+        log.info(
+            "Valkey connected at %s:%d (tls=%s)", VALKEY_HOST, VALKEY_PORT, VALKEY_TLS
+        )
         return client
     except Exception as exc:
         log.warning(
@@ -115,25 +119,29 @@ def _build_valkey_client():
 # Kafka producer factory
 # ---------------------------------------------------------------------------
 
+
 def _build_kafka_producer():
     """Build Kafka producer for publishing alerts."""
     try:
         from kafka import KafkaProducer
+
         kwargs: dict = {
             "bootstrap_servers": KAFKA_BOOTSTRAP,
-            "value_serializer":  lambda v: json.dumps(v, default=str).encode("utf-8"),
-            "key_serializer":    lambda k: k.encode("utf-8") if k else None,
-            "acks":              "all",
-            "retries":           5,
-            "retry_backoff_ms":  500,
+            "value_serializer": lambda v: json.dumps(v, default=str).encode("utf-8"),
+            "key_serializer": lambda k: k.encode("utf-8") if k else None,
+            "acks": "all",
+            "retries": 5,
+            "retry_backoff_ms": 500,
         }
         if KAFKA_PROTOCOL == "SSL":
-            kwargs.update({
-                "security_protocol": "SSL",
-                "ssl_cafile":        os.getenv("KAFKA_SSL_CAFILE"),
-                "ssl_certfile":      os.getenv("KAFKA_SSL_CERTFILE"),
-                "ssl_keyfile":       os.getenv("KAFKA_SSL_KEYFILE"),
-            })
+            kwargs.update(
+                {
+                    "security_protocol": "SSL",
+                    "ssl_cafile": os.getenv("KAFKA_SSL_CAFILE"),
+                    "ssl_certfile": os.getenv("KAFKA_SSL_CERTFILE"),
+                    "ssl_keyfile": os.getenv("KAFKA_SSL_KEYFILE"),
+                }
+            )
         else:
             kwargs["security_protocol"] = "PLAINTEXT"
 
@@ -149,6 +157,7 @@ def _build_kafka_producer():
 # Alert writer
 # ---------------------------------------------------------------------------
 
+
 class AlertWriter:
     """
     Writes anomaly alerts to Valkey and the price-alerts Kafka topic.
@@ -158,14 +167,14 @@ class AlertWriter:
     """
 
     def __init__(self) -> None:
-        self._valkey  = _build_valkey_client()
-        self._kafka   = _build_kafka_producer()
+        self._valkey = _build_valkey_client()
+        self._kafka = _build_kafka_producer()
 
         # Counters
-        self.alerts_written:    int = 0
+        self.alerts_written: int = 0
         self.alerts_suppressed: int = 0
-        self.valkey_failures:   int = 0
-        self.kafka_failures:    int = 0
+        self.valkey_failures: int = 0
+        self.kafka_failures: int = 0
 
     # ------------------------------------------------------------------
     # Public interface
@@ -173,8 +182,8 @@ class AlertWriter:
 
     def write(
         self,
-        scored_result,              # detection.score.ScoredResult
-        feature_vector,             # processing.features.FeatureVector
+        scored_result,  # detection.score.ScoredResult
+        feature_vector,  # processing.features.FeatureVector
         baseline_price_usd: Optional[float] = None,
     ) -> bool:
         """
@@ -205,13 +214,14 @@ class AlertWriter:
             self.alerts_suppressed += 1
             log.info(
                 "Alert suppressed (cooldown active): %s score=%.4f",
-                dedup_key, scored_result.normalised_score,
+                dedup_key,
+                scored_result.normalised_score,
             )
             return False
 
         # --- Dual write ---
         valkey_ok = self._write_valkey(dedup_key, payload)
-        kafka_ok  = self._write_kafka(dedup_key, payload)
+        kafka_ok = self._write_kafka(dedup_key, payload)
 
         if valkey_ok or kafka_ok:
             self.alerts_written += 1
@@ -224,23 +234,21 @@ class AlertWriter:
                 payload["pct_deviation_usd"],
                 payload["contributing_factors"],
                 "ok" if valkey_ok else "failed",
-                "ok" if kafka_ok  else "failed",
+                "ok" if kafka_ok else "failed",
             )
             return True
 
-        log.error(
-            "Alert lost — both Valkey and Kafka writes failed for %s", dedup_key
-        )
+        log.error("Alert lost — both Valkey and Kafka writes failed for %s", dedup_key)
         return False
 
     def stats(self) -> dict:
         return {
-            "alerts_written":    self.alerts_written,
+            "alerts_written": self.alerts_written,
             "alerts_suppressed": self.alerts_suppressed,
-            "valkey_failures":   self.valkey_failures,
-            "kafka_failures":    self.kafka_failures,
-            "valkey_connected":  self._valkey is not None,
-            "kafka_connected":   self._kafka is not None,
+            "valkey_failures": self.valkey_failures,
+            "kafka_failures": self.kafka_failures,
+            "valkey_connected": self._valkey is not None,
+            "kafka_connected": self._kafka is not None,
         }
 
     # ------------------------------------------------------------------
@@ -256,7 +264,7 @@ class AlertWriter:
         """
         if self._valkey is None:
             self._try_reconnect_valkey()
-            return False   # allow alert if Valkey unavailable
+            return False  # allow alert if Valkey unavailable
 
         valkey_key = f"{VALKEY_KEY_PREFIX}:{dedup_key}"
         try:
@@ -264,7 +272,7 @@ class AlertWriter:
         except Exception as exc:
             log.warning("Valkey dedup check failed (%s) — allowing alert", exc)
             self.valkey_failures += 1
-            self._valkey = None   # mark for reconnect on next call
+            self._valkey = None  # mark for reconnect on next call
             return False
 
     # ------------------------------------------------------------------
@@ -294,7 +302,9 @@ class AlertWriter:
                 time=ALERT_COOLDOWN_SECONDS,
                 value=json.dumps(payload, default=str),
             )
-            log.debug("Valkey write OK: key=%s ttl=%ds", valkey_key, ALERT_COOLDOWN_SECONDS)
+            log.debug(
+                "Valkey write OK: key=%s ttl=%ds", valkey_key, ALERT_COOLDOWN_SECONDS
+            )
             return True
         except Exception as exc:
             log.error("Valkey write failed for %s: %s", valkey_key, exc)

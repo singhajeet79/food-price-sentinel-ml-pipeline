@@ -67,27 +67,27 @@ def _build_kafka_config() -> dict:
 
 # Baseline prices in USD per tonne (2024 averages)
 _BASELINES: dict[EnergyCommodity, float] = {
-    EnergyCommodity.CRUDE_OIL_BRENT: 550.0,   # ~$75/barrel × 7.33 barrels/tonne
-    EnergyCommodity.CRUDE_OIL_WTI:   530.0,
-    EnergyCommodity.NATURAL_GAS:      95.0,   # Henry Hub equivalent, per tonne LNG
-    EnergyCommodity.COAL:            140.0,
+    EnergyCommodity.CRUDE_OIL_BRENT: 550.0,  # ~$75/barrel × 7.33 barrels/tonne
+    EnergyCommodity.CRUDE_OIL_WTI: 530.0,
+    EnergyCommodity.NATURAL_GAS: 95.0,  # Henry Hub equivalent, per tonne LNG
+    EnergyCommodity.COAL: 140.0,
 }
 
 # (unit_raw, conversion_factor → per_tonne, barrel_equiv or None)
 # Crude oil: 1 tonne ≈ 7.33 barrels (API 35° gravity)
 _UNIT_META: dict[EnergyCommodity, tuple[str, float, bool]] = {
     EnergyCommodity.CRUDE_OIL_BRENT: ("per_barrel", 7.33, True),
-    EnergyCommodity.CRUDE_OIL_WTI:   ("per_barrel", 7.33, True),
-    EnergyCommodity.NATURAL_GAS:     ("per_mmbtu",  55.0, False),  # ~55 MMBTU/tonne LNG
-    EnergyCommodity.COAL:            ("per_tonne",   1.0, False),
+    EnergyCommodity.CRUDE_OIL_WTI: ("per_barrel", 7.33, True),
+    EnergyCommodity.NATURAL_GAS: ("per_mmbtu", 55.0, False),  # ~55 MMBTU/tonne LNG
+    EnergyCommodity.COAL: ("per_tonne", 1.0, False),
 }
 
 # Energy prices are more volatile than food; use higher noise parameters
 _VOLATILITY: dict[EnergyCommodity, float] = {
     EnergyCommodity.CRUDE_OIL_BRENT: 0.02,
-    EnergyCommodity.CRUDE_OIL_WTI:   0.02,
-    EnergyCommodity.NATURAL_GAS:     0.05,   # nat gas is extremely volatile
-    EnergyCommodity.COAL:            0.015,
+    EnergyCommodity.CRUDE_OIL_WTI: 0.02,
+    EnergyCommodity.NATURAL_GAS: 0.05,  # nat gas is extremely volatile
+    EnergyCommodity.COAL: 0.015,
 }
 
 _FX_RATE_USD_INR = 83.5
@@ -161,7 +161,9 @@ def _on_delivery(err, msg) -> None:
     else:
         log.debug(
             "Delivered | topic=%s partition=%d offset=%d",
-            msg.topic(), msg.partition(), msg.offset(),
+            msg.topic(),
+            msg.partition(),
+            msg.offset(),
         )
 
 
@@ -187,8 +189,7 @@ def produce_once(producer: Producer | None, topic: str, dry_run: bool = False) -
             )
 
         barrel_str = (
-            f" (${event.barrel_price_usd:.2f}/bbl)"
-            if event.barrel_price_usd else ""
+            f" (${event.barrel_price_usd:.2f}/bbl)" if event.barrel_price_usd else ""
         )
         stale_marker = " [STALE]" if event.is_stale else ""
         log.info(

@@ -80,15 +80,15 @@ log = logging.getLogger("consumer")
 
 BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 SECURITY_PROTOCOL = os.getenv("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT")
-CONSUMER_GROUP    = os.getenv("KAFKA_CONSUMER_GROUP", "food-price-sentinel-processor")
+CONSUMER_GROUP = os.getenv("KAFKA_CONSUMER_GROUP", "food-price-sentinel-processor")
 AUTO_OFFSET_RESET = os.getenv("KAFKA_AUTO_OFFSET_RESET", "latest")
 
-TOPIC_FOOD        = os.getenv("KAFKA_TOPIC_FOOD",        "food-prices")
-TOPIC_ENERGY      = os.getenv("KAFKA_TOPIC_ENERGY",      "energy-prices")
-TOPIC_FERTILIZER  = os.getenv("KAFKA_TOPIC_FERTILIZER",  "fertilizer-supply")
+TOPIC_FOOD = os.getenv("KAFKA_TOPIC_FOOD", "food-prices")
+TOPIC_ENERGY = os.getenv("KAFKA_TOPIC_ENERGY", "energy-prices")
+TOPIC_FERTILIZER = os.getenv("KAFKA_TOPIC_FERTILIZER", "fertilizer-supply")
 
 LAG_LOG_INTERVAL_S = int(os.getenv("LAG_LOG_INTERVAL_S", "60"))
-DRY_RUN            = os.getenv("DRY_RUN", "0") == "1"
+DRY_RUN = os.getenv("DRY_RUN", "0") == "1"
 
 ALL_TOPICS = [TOPIC_FOOD, TOPIC_ENERGY, TOPIC_FERTILIZER]
 
@@ -97,12 +97,13 @@ ALL_TOPICS = [TOPIC_FOOD, TOPIC_ENERGY, TOPIC_FERTILIZER]
 # Consumer factory
 # ---------------------------------------------------------------------------
 
+
 def build_consumer() -> KafkaConsumer:
     kwargs: dict = {
         "bootstrap_servers": BOOTSTRAP_SERVERS,
         "group_id": CONSUMER_GROUP,
         "auto_offset_reset": AUTO_OFFSET_RESET,
-        "enable_auto_commit": False,       # manual commit for at-least-once
+        "enable_auto_commit": False,  # manual commit for at-least-once
         "value_deserializer": lambda b: json.loads(b.decode("utf-8")),
         "key_deserializer": lambda b: b.decode("utf-8") if b else None,
         "max_poll_records": 50,
@@ -127,7 +128,9 @@ def build_consumer() -> KafkaConsumer:
     consumer.subscribe(ALL_TOPICS)
     log.info(
         "Consumer subscribed to topics=%s group=%s offset_reset=%s",
-        ALL_TOPICS, CONSUMER_GROUP, AUTO_OFFSET_RESET,
+        ALL_TOPICS,
+        CONSUMER_GROUP,
+        AUTO_OFFSET_RESET,
     )
     return consumer
 
@@ -135,6 +138,7 @@ def build_consumer() -> KafkaConsumer:
 # ---------------------------------------------------------------------------
 # Storage stub (replaced by real SQLAlchemy calls in storage/db.py)
 # ---------------------------------------------------------------------------
+
 
 def persist_feature_vector(fv: FeatureVector) -> Optional[int]:
     """Write feature vector to PostgreSQL. Returns the inserted row ID."""
@@ -148,9 +152,11 @@ def persist_feature_vector(fv: FeatureVector) -> Optional[int]:
         log.error("Failed to persist feature vector: %s", exc)
         return None
 
+
 # ---------------------------------------------------------------------------
 # Scorer stub (replaced by detection/score.py)
 # ---------------------------------------------------------------------------
+
 
 def score_feature_vector(fv: FeatureVector) -> Optional[float]:
     result = _scorer.score(fv)
@@ -180,9 +186,11 @@ def score_feature_vector(fv: FeatureVector) -> Optional[float]:
 
     return result.normalised_score
 
+
 # ---------------------------------------------------------------------------
 # Consumer lag tracking
 # ---------------------------------------------------------------------------
+
 
 class LagTracker:
     """
@@ -212,10 +220,7 @@ class LagTracker:
                 return
 
             end_offsets = self._consumer.end_offsets(list(partitions))
-            committed = {
-                tp: self._consumer.committed(tp) or 0
-                for tp in partitions
-            }
+            committed = {tp: self._consumer.committed(tp) or 0 for tp in partitions}
 
             total_lag = 0
             for tp in partitions:
@@ -226,12 +231,16 @@ class LagTracker:
                 if lag > 1000:
                     log.warning(
                         "HIGH LAG: topic=%s partition=%d lag=%d",
-                        tp.topic, tp.partition, lag,
+                        tp.topic,
+                        tp.partition,
+                        lag,
                     )
                 else:
                     log.info(
                         "Lag: topic=%s partition=%d lag=%d",
-                        tp.topic, tp.partition, lag,
+                        tp.topic,
+                        tp.partition,
+                        lag,
                     )
 
             log.info("Total consumer lag across all partitions: %d messages", total_lag)
@@ -256,6 +265,7 @@ def _persist_lag_snapshot(partitions, end_offsets, committed) -> None:
 # Message router
 # ---------------------------------------------------------------------------
 
+
 class MessageRouter:
     """
     Routes Kafka messages to the correct FeatureEngineer ingest method
@@ -265,12 +275,14 @@ class MessageRouter:
     def __init__(self, engineer: FeatureEngineer) -> None:
         self._engineer = engineer
         self._topic_handlers = {
-            TOPIC_FOOD:       self._handle_food,
-            TOPIC_ENERGY:     self._handle_energy,
+            TOPIC_FOOD: self._handle_food,
+            TOPIC_ENERGY: self._handle_energy,
             TOPIC_FERTILIZER: self._handle_fertilizer,
         }
 
-    def route(self, topic: str, key: Optional[str], value: dict) -> Optional[FeatureVector]:
+    def route(
+        self, topic: str, key: Optional[str], value: dict
+    ) -> Optional[FeatureVector]:
         handler = self._topic_handlers.get(topic)
         if handler is None:
             log.warning("No handler for topic '%s' — skipping", topic)
@@ -281,30 +293,40 @@ class MessageRouter:
         try:
             return self._engineer.process_food_event(value)
         except Exception as exc:
-            log.error("Error processing food event (key=%s): %s", key, exc, exc_info=True)
+            log.error(
+                "Error processing food event (key=%s): %s", key, exc, exc_info=True
+            )
             return None
 
     def _handle_energy(self, key: Optional[str], value: dict) -> None:
         try:
             self._engineer.process_energy_event(value)
         except Exception as exc:
-            log.error("Error processing energy event (key=%s): %s", key, exc, exc_info=True)
+            log.error(
+                "Error processing energy event (key=%s): %s", key, exc, exc_info=True
+            )
 
     def _handle_fertilizer(self, key: Optional[str], value: dict) -> None:
         try:
             self._engineer.process_fertilizer_event(value)
         except Exception as exc:
-            log.error("Error processing fertilizer event (key=%s): %s", key, exc, exc_info=True)
+            log.error(
+                "Error processing fertilizer event (key=%s): %s",
+                key,
+                exc,
+                exc_info=True,
+            )
 
 
 # ---------------------------------------------------------------------------
 # Main poll loop
 # ---------------------------------------------------------------------------
 
+
 def run() -> None:
-    consumer   = build_consumer()
-    engineer   = FeatureEngineer()
-    router     = MessageRouter(engineer)
+    consumer = build_consumer()
+    engineer = FeatureEngineer()
+    router = MessageRouter(engineer)
     lag_tracker = LagTracker(consumer)
 
     running = True
@@ -319,7 +341,7 @@ def run() -> None:
 
     log.info("Consumer poll loop started. DRY_RUN=%s", DRY_RUN)
     messages_total = 0
-    vectors_total  = 0
+    vectors_total = 0
 
     try:
         while running:
@@ -350,7 +372,8 @@ def run() -> None:
                         log.info(
                             "Vector emitted: %s/%s price=%.2f seasonal_adj=%.2f "
                             "momentum=%.4f energy_corr=%.4f low_conf=%s score=%s",
-                            fv.commodity, fv.region,
+                            fv.commodity,
+                            fv.region,
                             fv.raw_price_usd,
                             fv.seasonal_adjusted_price,
                             fv.momentum,
@@ -374,7 +397,8 @@ def run() -> None:
     finally:
         log.info(
             "Shutting down. messages_total=%d vectors_emitted=%d",
-            messages_total, vectors_total,
+            messages_total,
+            vectors_total,
         )
         log.info("Feature engineer stats: %s", engineer.stats())
         consumer.close()

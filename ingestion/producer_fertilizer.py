@@ -72,11 +72,11 @@ def _build_kafka_config() -> dict:
 
 # Baseline prices USD per tonne (2024 averages)
 _BASELINES: dict[FertilizerCommodity, float] = {
-    FertilizerCommodity.UREA:                   350.0,
-    FertilizerCommodity.DAP:                    600.0,
-    FertilizerCommodity.MOP:                    320.0,
-    FertilizerCommodity.AMMONIA:                430.0,
-    FertilizerCommodity.NATURAL_GAS_FEEDSTOCK:   95.0,  # per tonne LNG equivalent
+    FertilizerCommodity.UREA: 350.0,
+    FertilizerCommodity.DAP: 600.0,
+    FertilizerCommodity.MOP: 320.0,
+    FertilizerCommodity.AMMONIA: 430.0,
+    FertilizerCommodity.NATURAL_GAS_FEEDSTOCK: 95.0,  # per tonne LNG equivalent
 }
 
 # Which commodities are directly nat-gas-dependent (nitrogen-based)
@@ -103,7 +103,9 @@ def _simulate_nat_gas_price() -> float:
     return round(_NAT_GAS_BASELINE_USD * (1 + noise + shock), 4)
 
 
-def _simulate_supply_index(commodity: FertilizerCommodity, nat_gas_price: float) -> float:
+def _simulate_supply_index(
+    commodity: FertilizerCommodity, nat_gas_price: float
+) -> float:
     """
     Supply index reflects availability constraints.
     Nat-gas-dependent fertilizers see supply drops when gas price spikes >30%
@@ -113,14 +115,18 @@ def _simulate_supply_index(commodity: FertilizerCommodity, nat_gas_price: float)
     noise = random.gauss(0, 3)  # ±3 index points daily noise
 
     if commodity in _NAT_GAS_DEPENDENT:
-        gas_pct_above_baseline = (nat_gas_price - _NAT_GAS_BASELINE_USD) / _NAT_GAS_BASELINE_USD
+        gas_pct_above_baseline = (
+            nat_gas_price - _NAT_GAS_BASELINE_USD
+        ) / _NAT_GAS_BASELINE_USD
         if gas_pct_above_baseline > 0.30:
             # Simulate plant idling: supply drops 10-30 index points
             constraint = random.uniform(10, 30)
             base -= constraint
             log.debug(
                 "%-25s | Nat-gas spike (%.0f%% above baseline) → supply constraint −%.1f",
-                commodity, gas_pct_above_baseline * 100, constraint,
+                commodity,
+                gas_pct_above_baseline * 100,
+                constraint,
             )
 
     return round(max(0.0, min(200.0, base + noise)), 2)
@@ -203,7 +209,9 @@ def _on_delivery(err, msg) -> None:
     else:
         log.debug(
             "Delivered | topic=%s partition=%d offset=%d",
-            msg.topic(), msg.partition(), msg.offset(),
+            msg.topic(),
+            msg.partition(),
+            msg.offset(),
         )
 
 
@@ -228,7 +236,9 @@ def produce_once(producer: Producer | None, topic: str, dry_run: bool = False) -
                 callback=_on_delivery,
             )
 
-        supply_str = f" | supply_idx={event.supply_index:.1f}" if event.supply_index else ""
+        supply_str = (
+            f" | supply_idx={event.supply_index:.1f}" if event.supply_index else ""
+        )
         stale_marker = " [STALE]" if event.is_stale else ""
         log.info(
             "%-30s | $%8.2f USD/t%s%s",

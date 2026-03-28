@@ -52,17 +52,21 @@ STALE_THRESHOLD_MINUTES: int = int(os.getenv("STALE_DATA_THRESHOLD_MINUTES", "18
 ROLLING_WINDOW_SHORT: int = int(os.getenv("ROLLING_WINDOW_DAYS", "7"))
 ROLLING_WINDOW_LONG: int = int(os.getenv("LONG_WINDOW_DAYS", "30"))
 ENERGY_LAG_DAYS: int = int(os.getenv("ENERGY_LAG_DAYS", "14"))
-MIN_WINDOW_POINTS: int = 5          # minimum data points for 7d window to be valid
-LOW_CONFIDENCE_FLAG: float = -1.0   # sentinel value in feature vector for low-confidence windows
+MIN_WINDOW_POINTS: int = 5  # minimum data points for 7d window to be valid
+LOW_CONFIDENCE_FLAG: float = (
+    -1.0
+)  # sentinel value in feature vector for low-confidence windows
 
 
 # ---------------------------------------------------------------------------
 # Data classes
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class PricePoint:
     """A single price observation stored in the rolling window buffer."""
+
     price_usd: float
     data_as_of: datetime
     source_priority: int
@@ -77,6 +81,7 @@ class FeatureVector:
     The fully computed feature vector for one (commodity, region) tick.
     Passed to the anomaly detection scorer.
     """
+
     commodity: str
     region: str
     data_as_of: datetime
@@ -95,7 +100,7 @@ class FeatureVector:
     # Metadata
     seasonal_index: float
     is_seasonal_adjusted: bool
-    is_low_confidence: bool         # True if window completeness gate was near threshold
+    is_low_confidence: bool  # True if window completeness gate was near threshold
     raw_price_usd: float
     source_priority: int
 
@@ -144,6 +149,7 @@ class FeatureVector:
 # Index > 1.0 means prices are typically higher on this day than annual avg.
 # Index < 1.0 means prices are typically lower.
 
+
 def _build_bootstrap_seasonal_index() -> dict[str, dict[int, float]]:
     """
     Build a day-of-year seasonal index for each commodity using a simple
@@ -161,22 +167,22 @@ def _build_bootstrap_seasonal_index() -> dict[str, dict[int, float]]:
 
     commodities = {
         # commodity: (peak_doy, amplitude)
-        "wheat":    (130, 0.08),
-        "maize":    (160, 0.07),
-        "rice":     (75,  0.06),
+        "wheat": (130, 0.08),
+        "maize": (160, 0.07),
+        "rice": (75, 0.06),
         "soybeans": (190, 0.09),
-        "palm_oil": (15,  0.04),
-        "sugar":    (80,  0.07),
-        "barley":   (125, 0.08),
+        "palm_oil": (15, 0.04),
+        "sugar": (80, 0.07),
+        "barley": (125, 0.08),
         # Energy and fertilizer get flat index (1.0) — handled separately
         "crude_oil_brent": (1, 0.0),
-        "crude_oil_wti":   (1, 0.0),
-        "natural_gas":     (1, 0.0),
-        "coal":            (1, 0.0),
-        "urea":            (1, 0.0),
-        "dap":             (1, 0.0),
-        "mop":             (1, 0.0),
-        "ammonia":         (1, 0.0),
+        "crude_oil_wti": (1, 0.0),
+        "natural_gas": (1, 0.0),
+        "coal": (1, 0.0),
+        "urea": (1, 0.0),
+        "dap": (1, 0.0),
+        "mop": (1, 0.0),
+        "ammonia": (1, 0.0),
     }
 
     index: dict[str, dict[int, float]] = {}
@@ -211,6 +217,7 @@ def get_seasonal_index(commodity: str, day_of_year: int) -> float:
 # ---------------------------------------------------------------------------
 # Source conflict resolver
 # ---------------------------------------------------------------------------
+
 
 class SourceConflictResolver:
     """
@@ -252,7 +259,8 @@ class SourceConflictResolver:
         if point.source_priority < existing.source_priority:
             log.debug(
                 "Source conflict resolved: %s/%s bucket=%s — accepting priority %d over %d",
-                commodity, region,
+                commodity,
+                region,
                 self._bucket(point.data_as_of).isoformat(),
                 point.source_priority,
                 existing.source_priority,
@@ -262,7 +270,8 @@ class SourceConflictResolver:
 
         log.debug(
             "Source conflict resolved: %s/%s — discarding priority %d (kept %d)",
-            commodity, region,
+            commodity,
+            region,
             point.source_priority,
             existing.source_priority,
         )
@@ -272,6 +281,7 @@ class SourceConflictResolver:
 # ---------------------------------------------------------------------------
 # Rolling window buffer
 # ---------------------------------------------------------------------------
+
 
 class RollingWindowBuffer:
     """
@@ -307,6 +317,7 @@ class RollingWindowBuffer:
 # ---------------------------------------------------------------------------
 # Feature engineer
 # ---------------------------------------------------------------------------
+
 
 class FeatureEngineer:
     """
@@ -374,7 +385,10 @@ class FeatureEngineer:
         if latency > STALE_THRESHOLD_MINUTES:
             log.warning(
                 "Stale event dropped: %s/%s latency=%dm (threshold=%dm)",
-                commodity, region, latency, STALE_THRESHOLD_MINUTES,
+                commodity,
+                region,
+                latency,
+                STALE_THRESHOLD_MINUTES,
             )
             self.events_stale += 1
             return None
@@ -422,7 +436,9 @@ class FeatureEngineer:
 
     def process_fertilizer_event(self, event: dict) -> None:
         """Ingest a fertilizer price event — updates fertilizer buffer only."""
-        fertilizer_type = event.get("fertilizer_type") or event.get("commodity", "unknown")
+        fertilizer_type = event.get("fertilizer_type") or event.get(
+            "commodity", "unknown"
+        )
         price_usd = event["price_usd"]
         data_as_of = _parse_dt(event.get("data_as_of") or event.get("ingested_at"))
         source_priority = event.get("source_priority", 99)
@@ -469,7 +485,9 @@ class FeatureEngineer:
             self.vectors_low_confidence += 1
             log.debug(
                 "Low confidence vector for %s/%s: only %d points in 7d window",
-                commodity, region, len(prices_7d),
+                commodity,
+                region,
+                len(prices_7d),
             )
 
         # --- Rolling 30-day prices ---
@@ -482,7 +500,11 @@ class FeatureEngineer:
         points_7d = buffer.points_within(ROLLING_WINDOW_SHORT, now)
         if len(points_7d) >= 2:
             oldest_7d_price = points_7d[0].price_usd
-            momentum = (latest.price_usd - oldest_7d_price) / oldest_7d_price if oldest_7d_price > 0 else 0.0
+            momentum = (
+                (latest.price_usd - oldest_7d_price) / oldest_7d_price
+                if oldest_7d_price > 0
+                else 0.0
+            )
         else:
             momentum = 0.0
 
@@ -536,12 +558,17 @@ class FeatureEngineer:
         Returns correlation in [-1, 1]. Returns 0.0 on insufficient data.
         """
         food_key = (commodity, region)
-        food_prices = self._food_buffers[food_key].prices_within(ROLLING_WINDOW_LONG, reference)
+        food_prices = self._food_buffers[food_key].prices_within(
+            ROLLING_WINDOW_LONG, reference
+        )
 
         # Select best available energy buffer
         energy_buffer = None
         for candidate in ("crude_oil_brent", "crude_oil_wti", "natural_gas", "coal"):
-            if candidate in self._energy_buffers and len(self._energy_buffers[candidate]) > 0:
+            if (
+                candidate in self._energy_buffers
+                and len(self._energy_buffers[candidate]) > 0
+            ):
                 energy_buffer = self._energy_buffers[candidate]
                 break
 
@@ -582,8 +609,8 @@ class FeatureEngineer:
         past_reference = reference - timedelta(days=ROLLING_WINDOW_SHORT)
 
         for buf in self._fertilizer_buffers.values():
-            current = buf.prices_within(2, reference)      # last 2 days
-            past = buf.prices_within(2, past_reference)    # 2 days around 7d ago
+            current = buf.prices_within(2, reference)  # last 2 days
+            past = buf.prices_within(2, past_reference)  # 2 days around 7d ago
 
             if current:
                 current_prices.append(np.mean(current))
@@ -613,17 +640,19 @@ class FeatureEngineer:
             "vectors_emitted": self.vectors_emitted,
             "vectors_low_confidence": self.vectors_low_confidence,
             "food_buffers": {
-                f"{k[0]}/{k[1]}": len(v)
-                for k, v in self._food_buffers.items()
+                f"{k[0]}/{k[1]}": len(v) for k, v in self._food_buffers.items()
             },
             "energy_buffers": {k: len(v) for k, v in self._energy_buffers.items()},
-            "fertilizer_buffers": {k: len(v) for k, v in self._fertilizer_buffers.items()},
+            "fertilizer_buffers": {
+                k: len(v) for k, v in self._fertilizer_buffers.items()
+            },
         }
 
 
 # ---------------------------------------------------------------------------
 # Utility
 # ---------------------------------------------------------------------------
+
 
 def _parse_dt(value) -> datetime:
     """Parse an ISO datetime string or pass through a datetime object."""

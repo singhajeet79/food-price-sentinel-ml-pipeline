@@ -77,25 +77,25 @@ def _build_kafka_config() -> dict:
 
 # Baseline prices in USD per tonne — approximate real-world 2024 averages
 _BASELINES: dict[FoodCommodity, float] = {
-    FoodCommodity.WHEAT:     310.0,
-    FoodCommodity.RICE:      560.0,
-    FoodCommodity.MAIZE:     220.0,
-    FoodCommodity.SOYBEANS:  480.0,
-    FoodCommodity.PALM_OIL:  950.0,
-    FoodCommodity.SUGAR:     430.0,
-    FoodCommodity.BARLEY:    250.0,
+    FoodCommodity.WHEAT: 310.0,
+    FoodCommodity.RICE: 560.0,
+    FoodCommodity.MAIZE: 220.0,
+    FoodCommodity.SOYBEANS: 480.0,
+    FoodCommodity.PALM_OIL: 950.0,
+    FoodCommodity.SUGAR: 430.0,
+    FoodCommodity.BARLEY: 250.0,
 }
 
 # Units as reported by typical sources before normalization
 _UNIT_RAW: dict[FoodCommodity, tuple[str, float]] = {
     # (unit_raw, conversion_factor_to_per_tonne)
-    FoodCommodity.WHEAT:     ("per_bushel", 36.7437),   # 1 tonne = 36.74 bushels
-    FoodCommodity.RICE:      ("per_cwt",    22.0462),   # 1 tonne = 22.05 cwt
-    FoodCommodity.MAIZE:     ("per_bushel", 39.3683),
-    FoodCommodity.SOYBEANS:  ("per_bushel", 36.7437),
-    FoodCommodity.PALM_OIL:  ("per_tonne",  1.0),
-    FoodCommodity.SUGAR:     ("per_lb",     2204.62),   # 1 tonne = 2204.62 lb
-    FoodCommodity.BARLEY:    ("per_tonne",  1.0),
+    FoodCommodity.WHEAT: ("per_bushel", 36.7437),  # 1 tonne = 36.74 bushels
+    FoodCommodity.RICE: ("per_cwt", 22.0462),  # 1 tonne = 22.05 cwt
+    FoodCommodity.MAIZE: ("per_bushel", 39.3683),
+    FoodCommodity.SOYBEANS: ("per_bushel", 36.7437),
+    FoodCommodity.PALM_OIL: ("per_tonne", 1.0),
+    FoodCommodity.SUGAR: ("per_lb", 2204.62),  # 1 tonne = 2204.62 lb
+    FoodCommodity.BARLEY: ("per_tonne", 1.0),
 }
 
 # FX rate simulation: USD → local currency (INR as representative South Asia rate)
@@ -116,6 +116,7 @@ def _simulate_price(commodity: FoodCommodity, as_of: datetime) -> dict:
 
     # Seasonal component: sine wave peaking in northern-hemisphere winter
     import math
+
     seasonal_factor = 1 + 0.08 * math.sin(2 * math.pi * (doy - 30) / 365)
 
     # Random daily noise
@@ -152,7 +153,9 @@ def _simulate_price(commodity: FoodCommodity, as_of: datetime) -> dict:
 def _generate_events(as_of: datetime | None = None) -> Iterator[FoodPriceEvent]:
     """Yield one FoodPriceEvent per commodity for a given timestamp."""
     if as_of is None:
-        as_of = datetime.now(timezone.utc) - timedelta(minutes=30)  # simulate ~30min lag
+        as_of = datetime.now(timezone.utc) - timedelta(
+            minutes=30
+        )  # simulate ~30min lag
 
     source_priority = int(os.getenv("SOURCE_PRIORITY_FAO", "1"))
 
@@ -191,7 +194,9 @@ def _on_delivery(err, msg) -> None:
     else:
         log.debug(
             "Delivered | topic=%s partition=%d offset=%d",
-            msg.topic(), msg.partition(), msg.offset(),
+            msg.topic(),
+            msg.partition(),
+            msg.offset(),
         )
 
 
@@ -215,7 +220,7 @@ def produce_once(producer: Producer | None, topic: str, dry_run: bool = False) -
             assert producer is not None
             producer.produce(
                 topic=topic,
-                key=event.commodity,           # partition by commodity
+                key=event.commodity,  # partition by commodity
                 value=payload.encode("utf-8"),
                 callback=_on_delivery,
             )
@@ -268,8 +273,12 @@ def run(interval_seconds: int = 60, once: bool = False, dry_run: bool = False) -
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Food price Kafka producer")
     parser.add_argument("--once", action="store_true", help="Emit one batch and exit")
-    parser.add_argument("--dry-run", action="store_true", help="Print payloads without Kafka")
-    parser.add_argument("--interval", type=int, default=60, help="Seconds between batches")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Print payloads without Kafka"
+    )
+    parser.add_argument(
+        "--interval", type=int, default=60, help="Seconds between batches"
+    )
     args = parser.parse_args()
 
     run(interval_seconds=args.interval, once=args.once, dry_run=args.dry_run)

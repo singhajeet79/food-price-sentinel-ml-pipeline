@@ -34,6 +34,7 @@ log = logging.getLogger(__name__)
 # Response models
 # ---------------------------------------------------------------------------
 
+
 class AnomalyRecord(BaseModel):
     id: int
     commodity: str
@@ -77,6 +78,7 @@ class StatsResponse(BaseModel):
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _orm_to_record(row: AnomalyLog) -> AnomalyRecord:
     return AnomalyRecord(
         id=row.id,
@@ -95,6 +97,7 @@ def _orm_to_record(row: AnomalyLog) -> AnomalyRecord:
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
+
 
 @router.get("", response_model=HistoryResponse)
 def get_history(
@@ -118,8 +121,7 @@ def get_history(
 
     total = query.count()
     records = (
-        query
-        .order_by(desc(AnomalyLog.detected_at))
+        query.order_by(desc(AnomalyLog.detected_at))
         .offset((page - 1) * page_size)
         .limit(page_size)
         .all()
@@ -150,7 +152,7 @@ def get_stats(
     )
 
     total_anomalies = base_q.count()
-    total_alerts    = base_q.filter(AnomalyLog.alerted).count()
+    total_alerts = base_q.filter(AnomalyLog.alerted).count()
     total_suppressed = base_q.filter(AnomalyLog.suppressed).count()
 
     # By severity

@@ -24,7 +24,7 @@ ALERT_COOLDOWN_SECONDS: int = int(os.getenv("ALERT_COOLDOWN_SECONDS", "21600"))
 
 
 def build_alert_payload(
-    scored_result,                          # detection.score.ScoredResult
+    scored_result,  # detection.score.ScoredResult
     current_price_usd: float,
     baseline_price_usd: float,
     model_version: str,
@@ -45,37 +45,41 @@ def build_alert_payload(
     now = datetime.now(tz=timezone.utc)
     cooldown_until = now + timedelta(seconds=ALERT_COOLDOWN_SECONDS)
 
-    pct_deviation_usd = round(
-        (current_price_usd - baseline_price_usd) / baseline_price_usd * 100, 2
-    ) if baseline_price_usd > 0 else 0.0
+    pct_deviation_usd = (
+        round((current_price_usd - baseline_price_usd) / baseline_price_usd * 100, 2)
+        if baseline_price_usd > 0
+        else 0.0
+    )
 
     contributing_factors = _infer_contributing_factors(
         scored_result.feature_snapshot,
         pct_deviation_usd,
     )
 
-    dedup_key = f"{scored_result.commodity}:{scored_result.region}:{scored_result.severity}"
+    dedup_key = (
+        f"{scored_result.commodity}:{scored_result.region}:{scored_result.severity}"
+    )
 
     return {
-        "alert_id":              str(uuid4()),
-        "commodity":             scored_result.commodity,
-        "region":                scored_result.region,
-        "anomaly_score":         scored_result.normalised_score,
-        "severity":              scored_result.severity,
-        "current_price_usd":     current_price_usd,
-        "baseline_price_usd":    baseline_price_usd,
-        "pct_deviation_usd":     pct_deviation_usd,
-        "current_price_local":   current_price_local,
-        "local_currency":        local_currency,
-        "pct_deviation_local":   pct_deviation_local,
-        "contributing_factors":  contributing_factors,
-        "geopolitical_tags":     geopolitical_tags or [],
-        "is_seasonal_adjusted":  is_seasonal_adjusted,
-        "model_version":         model_version,
-        "dedup_key":             dedup_key,
-        "cooldown_until":        cooldown_until.isoformat(),
-        "triggered_at":          now.isoformat(),
-        "ttl_seconds":           ALERT_COOLDOWN_SECONDS,
+        "alert_id": str(uuid4()),
+        "commodity": scored_result.commodity,
+        "region": scored_result.region,
+        "anomaly_score": scored_result.normalised_score,
+        "severity": scored_result.severity,
+        "current_price_usd": current_price_usd,
+        "baseline_price_usd": baseline_price_usd,
+        "pct_deviation_usd": pct_deviation_usd,
+        "current_price_local": current_price_local,
+        "local_currency": local_currency,
+        "pct_deviation_local": pct_deviation_local,
+        "contributing_factors": contributing_factors,
+        "geopolitical_tags": geopolitical_tags or [],
+        "is_seasonal_adjusted": is_seasonal_adjusted,
+        "model_version": model_version,
+        "dedup_key": dedup_key,
+        "cooldown_until": cooldown_until.isoformat(),
+        "triggered_at": now.isoformat(),
+        "ttl_seconds": ALERT_COOLDOWN_SECONDS,
     }
 
 
@@ -101,9 +105,9 @@ def _infer_contributing_factors(
     snap = feature_snapshot
 
     energy_corr = snap.get("energy_lag_corr", 0.0)
-    fert_delta   = snap.get("fertilizer_index_delta", 0.0)
-    momentum     = snap.get("momentum", 0.0)
-    vol          = snap.get("rolling_30d_std", 0.0)
+    fert_delta = snap.get("fertilizer_index_delta", 0.0)
+    momentum = snap.get("momentum", 0.0)
+    vol = snap.get("rolling_30d_std", 0.0)
 
     if energy_corr > 0.60:
         factors.append("energy_spike")

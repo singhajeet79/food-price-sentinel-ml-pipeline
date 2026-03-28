@@ -70,15 +70,16 @@ MODELS_DIR = Path(os.getenv("MODELS_DIR", "detection/models"))
 # Severity thresholds (normalised score 0-1)
 SEVERITY_THRESHOLDS: dict[str, float] = {
     "CRITICAL": 0.85,
-    "HIGH":     0.70,
-    "MEDIUM":   0.55,
-    "LOW":      0.40,
+    "HIGH": 0.70,
+    "MEDIUM": 0.55,
+    "LOW": 0.40,
 }
 
 
 # ---------------------------------------------------------------------------
 # Model metadata
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class ModelMetadata:
@@ -88,7 +89,7 @@ class ModelMetadata:
     n_training_samples: int
     contamination: float
     n_estimators: int
-    auc_roc: Optional[float] = None         # set after evaluation
+    auc_roc: Optional[float] = None  # set after evaluation
     notes: str = ""
 
     def to_dict(self) -> dict:
@@ -102,6 +103,7 @@ class ModelMetadata:
 # ---------------------------------------------------------------------------
 # Sentinel model
 # ---------------------------------------------------------------------------
+
 
 class SentinelModel:
     """
@@ -175,7 +177,9 @@ class SentinelModel:
         self._validate_shape(X)
         log.info(
             "Training IsolationForest: n_samples=%d n_features=%d contamination=%.3f",
-            X.shape[0], X.shape[1], self.metadata.contamination,
+            X.shape[0],
+            X.shape[1],
+            self.metadata.contamination,
         )
 
         X_scaled = self._scaler.fit_transform(X)
@@ -304,12 +308,12 @@ class SentinelModel:
             version = latest_path.read_text().strip()
 
         bundle_path = models_dir / f"sentinel_{version}.pkl"
-        meta_path   = models_dir / f"sentinel_{version}.meta.json"
+        meta_path = models_dir / f"sentinel_{version}.meta.json"
 
         if not bundle_path.exists():
             raise FileNotFoundError(f"Model bundle not found: {bundle_path}")
 
-        bundle   = joblib.load(bundle_path)
+        bundle = joblib.load(bundle_path)
         metadata = ModelMetadata.from_dict(json.loads(meta_path.read_text()))
 
         instance = cls(

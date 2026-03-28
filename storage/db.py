@@ -41,15 +41,16 @@ log = logging.getLogger(__name__)
 # Config
 # ---------------------------------------------------------------------------
 
-POSTGRES_URL  = os.getenv("POSTGRES_URL")
-DB_POOL_SIZE  = int(os.getenv("DB_POOL_SIZE", "5"))
+POSTGRES_URL = os.getenv("POSTGRES_URL")
+DB_POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "5"))
 DB_MAX_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", "10"))
-DB_ECHO       = os.getenv("DB_ECHO", "0") == "1"
+DB_ECHO = os.getenv("DB_ECHO", "0") == "1"
 
 
 # ---------------------------------------------------------------------------
 # Declarative base (shared by all ORM models)
 # ---------------------------------------------------------------------------
+
 
 class Base(DeclarativeBase):
     pass
@@ -78,12 +79,14 @@ def get_engine() -> Engine:
             POSTGRES_URL,
             pool_size=DB_POOL_SIZE,
             max_overflow=DB_MAX_OVERFLOW,
-            pool_pre_ping=True,     # test connection before checkout
+            pool_pre_ping=True,  # test connection before checkout
             echo=DB_ECHO,
         )
         log.info(
             "SQLAlchemy engine created (pool_size=%d max_overflow=%d echo=%s)",
-            DB_POOL_SIZE, DB_MAX_OVERFLOW, DB_ECHO,
+            DB_POOL_SIZE,
+            DB_MAX_OVERFLOW,
+            DB_ECHO,
         )
     return _engine
 
@@ -134,6 +137,7 @@ def get_session() -> Generator[Session, None, None]:
 # ---------------------------------------------------------------------------
 # Table creation (dev / test only)
 # ---------------------------------------------------------------------------
+
 
 def init_db() -> None:
     """

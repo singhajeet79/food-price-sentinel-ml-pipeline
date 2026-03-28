@@ -57,12 +57,13 @@ logging.basicConfig(
 )
 log = logging.getLogger("train")
 
-DRIFT_TOLERANCE = 0.15      # max allowed shift in anomaly rate vs previous model
+DRIFT_TOLERANCE = 0.15  # max allowed shift in anomaly rate vs previous model
 
 
 # ---------------------------------------------------------------------------
 # Synthetic data generation
 # ---------------------------------------------------------------------------
+
 
 def generate_synthetic_features(
     n_samples: int = 5000,
@@ -89,45 +90,61 @@ def generate_synthetic_features(
 
     # --- Normal samples ---
     # seasonal_adjusted_price: mean 300, std 25 (wheat-like)
-    normal_sap       = rng.normal(300.0, 25.0, n_normal)
+    normal_sap = rng.normal(300.0, 25.0, n_normal)
     # rolling_7d_avg: close to seasonal_adjusted_price
-    normal_7d_avg    = normal_sap + rng.normal(0, 5.0, n_normal)
+    normal_7d_avg = normal_sap + rng.normal(0, 5.0, n_normal)
     # rolling_30d_std: low during normal periods
-    normal_30d_std   = rng.gamma(shape=2.0, scale=4.0, size=n_normal)
+    normal_30d_std = rng.gamma(shape=2.0, scale=4.0, size=n_normal)
     # momentum: near zero, mild positive drift
-    normal_momentum  = rng.normal(0.001, 0.012, n_normal)
+    normal_momentum = rng.normal(0.001, 0.012, n_normal)
     # energy_lag_corr: moderate positive correlation
-    normal_energy    = rng.normal(0.35, 0.20, n_normal)
+    normal_energy = rng.normal(0.35, 0.20, n_normal)
     # fertilizer_delta: small changes
-    normal_fert      = rng.normal(0.002, 0.015, n_normal)
+    normal_fert = rng.normal(0.002, 0.015, n_normal)
     # cyclical encodings: uniformly distributed through the year
-    doys_normal      = rng.integers(1, 366, n_normal)
-    normal_sin       = np.sin(2 * np.pi * doys_normal / 365)
-    normal_cos       = np.cos(2 * np.pi * doys_normal / 365)
+    doys_normal = rng.integers(1, 366, n_normal)
+    normal_sin = np.sin(2 * np.pi * doys_normal / 365)
+    normal_cos = np.cos(2 * np.pi * doys_normal / 365)
 
-    X_normal = np.column_stack([
-        normal_sap, normal_7d_avg, normal_30d_std,
-        normal_momentum, normal_energy, normal_fert,
-        normal_sin, normal_cos,
-    ])
+    X_normal = np.column_stack(
+        [
+            normal_sap,
+            normal_7d_avg,
+            normal_30d_std,
+            normal_momentum,
+            normal_energy,
+            normal_fert,
+            normal_sin,
+            normal_cos,
+        ]
+    )
 
     # --- Anomalous samples ---
     # Price spikes: seasonal_adjusted_price >> rolling_7d_avg
-    anomaly_sap      = rng.normal(300.0, 25.0, n_anomaly) * rng.uniform(1.2, 2.0, n_anomaly)
-    anomaly_7d_avg   = rng.normal(300.0, 25.0, n_anomaly)   # avg hasn't caught up
-    anomaly_30d_std  = rng.gamma(shape=3.0, scale=15.0, size=n_anomaly)   # high volatility
-    anomaly_momentum = rng.uniform(0.08, 0.45, n_anomaly)   # sharp upward momentum
-    anomaly_energy   = rng.normal(0.70, 0.15, n_anomaly)    # high energy correlation
-    anomaly_fert     = rng.uniform(0.05, 0.30, n_anomaly)   # large fertilizer delta
-    doys_anomaly     = rng.integers(1, 366, n_anomaly)
-    anomaly_sin      = np.sin(2 * np.pi * doys_anomaly / 365)
-    anomaly_cos      = np.cos(2 * np.pi * doys_anomaly / 365)
+    anomaly_sap = rng.normal(300.0, 25.0, n_anomaly) * rng.uniform(1.2, 2.0, n_anomaly)
+    anomaly_7d_avg = rng.normal(300.0, 25.0, n_anomaly)  # avg hasn't caught up
+    anomaly_30d_std = rng.gamma(
+        shape=3.0, scale=15.0, size=n_anomaly
+    )  # high volatility
+    anomaly_momentum = rng.uniform(0.08, 0.45, n_anomaly)  # sharp upward momentum
+    anomaly_energy = rng.normal(0.70, 0.15, n_anomaly)  # high energy correlation
+    anomaly_fert = rng.uniform(0.05, 0.30, n_anomaly)  # large fertilizer delta
+    doys_anomaly = rng.integers(1, 366, n_anomaly)
+    anomaly_sin = np.sin(2 * np.pi * doys_anomaly / 365)
+    anomaly_cos = np.cos(2 * np.pi * doys_anomaly / 365)
 
-    X_anomaly = np.column_stack([
-        anomaly_sap, anomaly_7d_avg, anomaly_30d_std,
-        anomaly_momentum, anomaly_energy, anomaly_fert,
-        anomaly_sin, anomaly_cos,
-    ])
+    X_anomaly = np.column_stack(
+        [
+            anomaly_sap,
+            anomaly_7d_avg,
+            anomaly_30d_std,
+            anomaly_momentum,
+            anomaly_energy,
+            anomaly_fert,
+            anomaly_sin,
+            anomaly_cos,
+        ]
+    )
 
     X = np.vstack([X_normal, X_anomaly])
 
@@ -139,6 +156,7 @@ def generate_synthetic_features(
 # ---------------------------------------------------------------------------
 # PostgreSQL data loading (stub — wired up in Phase 3)
 # ---------------------------------------------------------------------------
+
 
 def load_features_from_postgres(days: int = 90) -> np.ndarray:
     """
@@ -170,6 +188,7 @@ def load_features_from_postgres(days: int = 90) -> np.ndarray:
 # Evaluation
 # ---------------------------------------------------------------------------
 
+
 def evaluate(
     model: SentinelModel,
     X_val: np.ndarray,
@@ -187,15 +206,15 @@ def evaluate(
     anomaly_rate = float(flagged.mean())
 
     metrics = {
-        "n_val_samples":    len(scores),
-        "anomaly_rate":     round(anomaly_rate, 4),
+        "n_val_samples": len(scores),
+        "anomaly_rate": round(anomaly_rate, 4),
         "configured_contamination": contamination,
-        "score_min":        round(float(scores.min()), 4),
-        "score_p25":        round(float(np.percentile(scores, 25)), 4),
-        "score_p50":        round(float(np.percentile(scores, 50)), 4),
-        "score_p75":        round(float(np.percentile(scores, 75)), 4),
-        "score_max":        round(float(scores.max()), 4),
-        "threshold_used":   threshold,
+        "score_min": round(float(scores.min()), 4),
+        "score_p25": round(float(np.percentile(scores, 25)), 4),
+        "score_p50": round(float(np.percentile(scores, 50)), 4),
+        "score_p75": round(float(np.percentile(scores, 75)), 4),
+        "score_max": round(float(scores.max()), 4),
+        "threshold_used": threshold,
     }
 
     log.info("Evaluation results:")
@@ -208,6 +227,7 @@ def evaluate(
 # ---------------------------------------------------------------------------
 # Comparison with previous model
 # ---------------------------------------------------------------------------
+
 
 def compare_with_previous(
     new_metrics: dict,
@@ -235,13 +255,18 @@ def compare_with_previous(
     drift = abs(new_rate - old_contamination)
     log.info(
         "Anomaly rate drift: new_rate=%.4f old_contamination=%.4f drift=%.4f tolerance=%.4f",
-        new_rate, old_contamination, drift, DRIFT_TOLERANCE,
+        new_rate,
+        old_contamination,
+        drift,
+        DRIFT_TOLERANCE,
     )
 
     if drift > DRIFT_TOLERANCE:
         log.warning(
             "Drift %.4f exceeds tolerance %.4f — keeping existing model %s",
-            drift, DRIFT_TOLERANCE, old_model.metadata.model_version,
+            drift,
+            DRIFT_TOLERANCE,
+            old_model.metadata.model_version,
         )
         return False
 
@@ -253,13 +278,18 @@ def compare_with_previous(
 # Main
 # ---------------------------------------------------------------------------
 
+
 def run(args: argparse.Namespace) -> None:
     log.info("=== Food Price Sentinel — Model Training ===")
     log.info("Source: %s | Version: %s", args.source, args.version)
 
     # 1. Load training data
     if args.source == "simulate":
-        log.info("Generating %d synthetic samples (anomaly_fraction=%.2f)", args.n_samples, args.contamination)
+        log.info(
+            "Generating %d synthetic samples (anomaly_fraction=%.2f)",
+            args.n_samples,
+            args.contamination,
+        )
         X = generate_synthetic_features(
             n_samples=args.n_samples,
             anomaly_fraction=args.contamination,
@@ -291,7 +321,9 @@ def run(args: argparse.Namespace) -> None:
 
     # 4. Evaluate
     metrics = evaluate(model, X_val, args.contamination)
-    model.metadata.notes = f"source={args.source} val_anomaly_rate={metrics['anomaly_rate']}"
+    model.metadata.notes = (
+        f"source={args.source} val_anomaly_rate={metrics['anomaly_rate']}"
+    )
 
     # 5. Compare with previous model (if requested)
     models_dir = Path(args.models_dir)
@@ -312,20 +344,34 @@ def run(args: argparse.Namespace) -> None:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train the Food Price Sentinel anomaly model")
+    parser = argparse.ArgumentParser(
+        description="Train the Food Price Sentinel anomaly model"
+    )
     parser.add_argument(
         "--source",
         choices=["simulate", "postgres"],
         default="simulate",
         help="Training data source (default: simulate)",
     )
-    parser.add_argument("--version",      default="1.0.0",  help="Model version string")
-    parser.add_argument("--n-samples",    type=int,   default=5000,  help="Samples for simulate mode")
-    parser.add_argument("--contamination",type=float, default=0.05,  help="Expected anomaly fraction")
-    parser.add_argument("--n-estimators", type=int,   default=200,   help="Number of trees")
-    parser.add_argument("--days",         type=int,   default=90,    help="Days of history for postgres mode")
-    parser.add_argument("--seed",         type=int,   default=42,    help="Random seed")
-    parser.add_argument("--models-dir",   default=str(MODELS_DIR),   help="Model artifact directory")
-    parser.add_argument("--compare",      action="store_true",       help="Compare with existing model before promoting")
+    parser.add_argument("--version", default="1.0.0", help="Model version string")
+    parser.add_argument(
+        "--n-samples", type=int, default=5000, help="Samples for simulate mode"
+    )
+    parser.add_argument(
+        "--contamination", type=float, default=0.05, help="Expected anomaly fraction"
+    )
+    parser.add_argument("--n-estimators", type=int, default=200, help="Number of trees")
+    parser.add_argument(
+        "--days", type=int, default=90, help="Days of history for postgres mode"
+    )
+    parser.add_argument("--seed", type=int, default=42, help="Random seed")
+    parser.add_argument(
+        "--models-dir", default=str(MODELS_DIR), help="Model artifact directory"
+    )
+    parser.add_argument(
+        "--compare",
+        action="store_true",
+        help="Compare with existing model before promoting",
+    )
     args = parser.parse_args()
     run(args)

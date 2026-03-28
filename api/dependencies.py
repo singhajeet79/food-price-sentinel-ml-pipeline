@@ -35,7 +35,11 @@ def get_valkey_client() -> redis.Redis:
             port=int(os.getenv("VALKEY_PORT", "6379")),
             password=os.getenv("VALKEY_PASSWORD"),
             ssl=os.getenv("VALKEY_TLS", "false").lower() == "true",
-            ssl_cert_reqs="required" if os.getenv("VALKEY_TLS", "false").lower() == "true" else None,
+            ssl_cert_reqs=(
+                "required"
+                if os.getenv("VALKEY_TLS", "false").lower() == "true"
+                else None
+            ),
             decode_responses=True,
             socket_connect_timeout=5,
             socket_timeout=5,
@@ -47,9 +51,11 @@ def get_valkey_client() -> redis.Redis:
 # PostgreSQL
 # ---------------------------------------------------------------------------
 
+
 def get_db_engine():
     """Return the SQLAlchemy engine singleton."""
     from storage.db import get_engine
+
     return get_engine()
 
 
@@ -63,5 +69,6 @@ def get_db_session() -> Generator[Session, None, None]:
             ...
     """
     from storage.db import get_session
+
     with get_session() as session:
         yield session

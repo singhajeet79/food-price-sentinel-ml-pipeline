@@ -36,6 +36,7 @@ VALKEY_KEY_PREFIX = "alert"
 # Response models
 # ---------------------------------------------------------------------------
 
+
 class AlertResponse(BaseModel):
     alert_id: str
     commodity: str
@@ -66,6 +67,7 @@ class AlertsListResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _fetch_alerts_by_pattern(pattern: str) -> list[dict]:
     """
@@ -101,9 +103,12 @@ def _fetch_alerts_by_pattern(pattern: str) -> list[dict]:
 # Routes
 # ---------------------------------------------------------------------------
 
+
 @router.get("/active", response_model=AlertsListResponse)
 def get_active_alerts(
-    severity: Optional[str] = Query(None, description="Filter by severity: LOW, MEDIUM, HIGH, CRITICAL"),
+    severity: Optional[str] = Query(
+        None, description="Filter by severity: LOW, MEDIUM, HIGH, CRITICAL"
+    ),
     limit: int = Query(50, ge=1, le=200, description="Max alerts to return"),
 ):
     """
@@ -119,7 +124,8 @@ def get_active_alerts(
         severity_order = {"LOW": 1, "MEDIUM": 2, "HIGH": 3, "CRITICAL": 4}
         min_rank = severity_order.get(severity.upper(), 0)
         alerts = [
-            a for a in alerts
+            a
+            for a in alerts
             if severity_order.get(a.get("severity", ""), 0) >= min_rank
         ]
 

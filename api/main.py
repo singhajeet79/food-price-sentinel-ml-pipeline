@@ -65,6 +65,7 @@ app.add_middleware(
 # Request timing middleware
 # ---------------------------------------------------------------------------
 
+
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     start = time.monotonic()
@@ -72,14 +73,18 @@ async def log_requests(request: Request, call_next):
     duration_ms = (time.monotonic() - start) * 1000
     log.info(
         "%s %s → %d (%.1fms)",
-        request.method, request.url.path,
-        response.status_code, duration_ms,
+        request.method,
+        request.url.path,
+        response.status_code,
+        duration_ms,
     )
     return response
+
 
 # ---------------------------------------------------------------------------
 # Global exception handler
 # ---------------------------------------------------------------------------
+
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
@@ -89,9 +94,11 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"error": "Internal server error", "detail": str(exc)},
     )
 
+
 # ---------------------------------------------------------------------------
 # Lifecycle
 # ---------------------------------------------------------------------------
+
 
 @app.on_event("startup")
 async def startup():
@@ -107,6 +114,7 @@ async def startup():
     try:
         engine = get_db_engine()
         from sqlalchemy import text
+
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         log.info("PostgreSQL connection OK")
@@ -118,10 +126,11 @@ async def startup():
 async def shutdown():
     log.info("Food Price Sentinel API shutting down.")
 
+
 # ---------------------------------------------------------------------------
 # Routers
 # ---------------------------------------------------------------------------
 
-app.include_router(health.router,  prefix="",         tags=["health"])
-app.include_router(alerts.router,  prefix="/alerts",  tags=["alerts"])
+app.include_router(health.router, prefix="", tags=["health"])
+app.include_router(alerts.router, prefix="/alerts", tags=["alerts"])
 app.include_router(history.router, prefix="/history", tags=["history"])

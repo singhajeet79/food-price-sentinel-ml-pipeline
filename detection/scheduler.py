@@ -52,15 +52,16 @@ log = logging.getLogger("scheduler")
 # Config
 # ---------------------------------------------------------------------------
 
-RETRAIN_INTERVAL_HOURS    = int(os.getenv("RETRAIN_INTERVAL_HOURS", "24"))
+RETRAIN_INTERVAL_HOURS = int(os.getenv("RETRAIN_INTERVAL_HOURS", "24"))
 DRIFT_CHECK_INTERVAL_HOURS = int(os.getenv("DRIFT_CHECK_INTERVAL_HOURS", "6"))
-RETRAIN_DAYS              = int(os.getenv("RETRAIN_DAYS", "90"))
-MODELS_DIR                = os.getenv("MODELS_DIR", "detection/models")
+RETRAIN_DAYS = int(os.getenv("RETRAIN_DAYS", "90"))
+MODELS_DIR = os.getenv("MODELS_DIR", "detection/models")
 
 
 # ---------------------------------------------------------------------------
 # Job runner
 # ---------------------------------------------------------------------------
+
 
 def run_job(name: str, cmd: list[str]) -> int:
     """
@@ -76,14 +77,16 @@ def run_job(name: str, cmd: list[str]) -> int:
             cmd,
             capture_output=True,
             text=True,
-            timeout=600,   # 10 minute timeout
+            timeout=600,  # 10 minute timeout
         )
         duration = time.monotonic() - start
 
         if result.returncode == 0:
             log.info("Job %s completed successfully in %.1fs", name, duration)
         else:
-            log.warning("Job %s exited with code %d in %.1fs", name, result.returncode, duration)
+            log.warning(
+                "Job %s exited with code %d in %.1fs", name, result.returncode, duration
+            )
 
         if result.stdout:
             for line in result.stdout.strip().splitlines():
@@ -106,6 +109,7 @@ def run_job(name: str, cmd: list[str]) -> int:
 # Scheduler
 # ---------------------------------------------------------------------------
 
+
 class MLOpsScheduler:
     """
     Background thread scheduler for retraining and drift detection.
@@ -120,7 +124,7 @@ class MLOpsScheduler:
         self._python = sys.executable
 
         # Track last run times
-        self._last_retrain:    datetime | None = None
+        self._last_retrain: datetime | None = None
         self._last_drift_check: datetime | None = None
 
     def start(self) -> None:
@@ -140,7 +144,8 @@ class MLOpsScheduler:
         self._threads = [retrain_thread, drift_thread]
         log.info(
             "MLOps scheduler started. Retrain every %dh, drift check every %dh.",
-            RETRAIN_INTERVAL_HOURS, DRIFT_CHECK_INTERVAL_HOURS,
+            RETRAIN_INTERVAL_HOURS,
+            DRIFT_CHECK_INTERVAL_HOURS,
         )
 
     def stop(self) -> None:
@@ -180,10 +185,14 @@ class MLOpsScheduler:
         rc = run_job(
             name="retrain",
             cmd=[
-                self._python, "detection/retrain.py",
-                "--days", str(RETRAIN_DAYS),
-                "--version", "auto",
-                "--models-dir", MODELS_DIR,
+                self._python,
+                "detection/retrain.py",
+                "--days",
+                str(RETRAIN_DAYS),
+                "--version",
+                "auto",
+                "--models-dir",
+                MODELS_DIR,
             ],
         )
 
@@ -202,26 +211,34 @@ class MLOpsScheduler:
         run_job(
             name="drift-check",
             cmd=[
-                self._python, "detection/drift.py",
-                "--window-hours", str(DRIFT_CHECK_INTERVAL_HOURS),
+                self._python,
+                "detection/drift.py",
+                "--window-hours",
+                str(DRIFT_CHECK_INTERVAL_HOURS),
                 "--write-valkey",
-                "--models-dir", MODELS_DIR,
+                "--models-dir",
+                MODELS_DIR,
             ],
         )
 
     def status(self) -> dict:
         return {
-            "retrain_interval_hours":    RETRAIN_INTERVAL_HOURS,
+            "retrain_interval_hours": RETRAIN_INTERVAL_HOURS,
             "drift_check_interval_hours": DRIFT_CHECK_INTERVAL_HOURS,
-            "last_retrain":              self._last_retrain.isoformat() if self._last_retrain else None,
-            "last_drift_check":          self._last_drift_check.isoformat() if self._last_drift_check else None,
-            "threads_alive":             [t.is_alive() for t in self._threads],
+            "last_retrain": (
+                self._last_retrain.isoformat() if self._last_retrain else None
+            ),
+            "last_drift_check": (
+                self._last_drift_check.isoformat() if self._last_drift_check else None
+            ),
+            "threads_alive": [t.is_alive() for t in self._threads],
         }
 
 
 # ---------------------------------------------------------------------------
 # Standalone entry point
 # ---------------------------------------------------------------------------
+
 
 def main() -> None:
     scheduler = MLOpsScheduler()

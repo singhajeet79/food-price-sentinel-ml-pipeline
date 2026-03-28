@@ -21,9 +21,19 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import (
-    BigInteger, Boolean, Column, DateTime, Float,
-    ForeignKey, Integer, Numeric, SmallInteger,
-    String, Table, Text, Index,
+    BigInteger,
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    Numeric,
+    SmallInteger,
+    String,
+    Table,
+    Text,
+    Index,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
@@ -39,40 +49,44 @@ def _utcnow() -> datetime:
 # price_events
 # ---------------------------------------------------------------------------
 
+
 class PriceEvent(Base):
     """
     Raw price observation ingested from a Kafka topic.
     One row per message that passes the data quality gates.
     """
+
     __tablename__ = "price_events"
 
-    id                     = Column(BigInteger, primary_key=True, autoincrement=True)
-    commodity              = Column(Text, nullable=False, index=True)
-    price_usd              = Column(Numeric(12, 4), nullable=False)
-    price_local            = Column(Numeric(12, 4), nullable=True)
-    local_currency         = Column(String(3), nullable=True)
-    fx_rate_to_usd         = Column(Numeric(10, 6), nullable=True)
-    unit_raw               = Column(Text, nullable=True)
-    unit_normalized        = Column(Text, default="per_tonne")
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    commodity = Column(Text, nullable=False, index=True)
+    price_usd = Column(Numeric(12, 4), nullable=False)
+    price_local = Column(Numeric(12, 4), nullable=True)
+    local_currency = Column(String(3), nullable=True)
+    fx_rate_to_usd = Column(Numeric(10, 6), nullable=True)
+    unit_raw = Column(Text, nullable=True)
+    unit_normalized = Column(Text, default="per_tonne")
     unit_conversion_factor = Column(Numeric(10, 6), default=1.0)
-    source                 = Column(Text, nullable=True)
-    source_priority        = Column(SmallInteger, default=99)
-    region                 = Column(Text, nullable=True, index=True)
-    season                 = Column(Text, nullable=True)
-    day_of_year            = Column(SmallInteger, nullable=True)
-    day_of_year_sin        = Column(Float, nullable=True)
-    day_of_year_cos        = Column(Float, nullable=True)
-    data_as_of             = Column(DateTime(timezone=True), nullable=True, index=True)
-    ingested_at            = Column(DateTime(timezone=True), default=_utcnow, index=True)
-    latency_minutes        = Column(Integer, nullable=True)
-    is_stale               = Column(Boolean, default=False, index=True)
+    source = Column(Text, nullable=True)
+    source_priority = Column(SmallInteger, default=99)
+    region = Column(Text, nullable=True, index=True)
+    season = Column(Text, nullable=True)
+    day_of_year = Column(SmallInteger, nullable=True)
+    day_of_year_sin = Column(Float, nullable=True)
+    day_of_year_cos = Column(Float, nullable=True)
+    data_as_of = Column(DateTime(timezone=True), nullable=True, index=True)
+    ingested_at = Column(DateTime(timezone=True), default=_utcnow, index=True)
+    latency_minutes = Column(Integer, nullable=True)
+    is_stale = Column(Boolean, default=False, index=True)
 
     # Relationship
     feature_vectors = relationship("FeatureVector", back_populates="price_event")
 
     __table_args__ = (
         Index("idx_price_events_commodity_time", "commodity", "data_as_of"),
-        Index("idx_price_events_stale", "is_stale", postgresql_where=Column("is_stale")),
+        Index(
+            "idx_price_events_stale", "is_stale", postgresql_where=Column("is_stale")
+        ),
     )
 
     @classmethod
@@ -107,34 +121,36 @@ class PriceEvent(Base):
 # feature_vectors
 # ---------------------------------------------------------------------------
 
+
 class FeatureVector(Base):
     """
     Computed rolling-window feature vector for one price event.
     Input to the anomaly detection model.
     """
+
     __tablename__ = "feature_vectors"
 
-    id                      = Column(BigInteger, primary_key=True, autoincrement=True)
-    price_event_id          = Column(BigInteger, ForeignKey("price_events.id"), nullable=True)
-    commodity               = Column(Text, nullable=False, index=True)
-    region                  = Column(Text, nullable=True)
-    rolling_7d_avg          = Column(Numeric(12, 4), nullable=True)
-    rolling_30d_std         = Column(Numeric(12, 4), nullable=True)
-    momentum                = Column(Numeric(8, 4), nullable=True)
-    energy_lag_corr         = Column(Numeric(6, 4), nullable=True)
-    fertilizer_index_delta  = Column(Numeric(8, 4), nullable=True)
-    seasonal_index          = Column(Numeric(6, 4), nullable=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    price_event_id = Column(BigInteger, ForeignKey("price_events.id"), nullable=True)
+    commodity = Column(Text, nullable=False, index=True)
+    region = Column(Text, nullable=True)
+    rolling_7d_avg = Column(Numeric(12, 4), nullable=True)
+    rolling_30d_std = Column(Numeric(12, 4), nullable=True)
+    momentum = Column(Numeric(8, 4), nullable=True)
+    energy_lag_corr = Column(Numeric(6, 4), nullable=True)
+    fertilizer_index_delta = Column(Numeric(8, 4), nullable=True)
+    seasonal_index = Column(Numeric(6, 4), nullable=True)
     seasonal_adjusted_price = Column(Numeric(12, 4), nullable=True)
-    is_seasonal_adjusted    = Column(Boolean, default=False)
-    is_low_confidence       = Column(Boolean, default=False)
-    raw_price_usd           = Column(Numeric(12, 4), nullable=True)
-    day_of_year_sin         = Column(Float, nullable=True)
-    day_of_year_cos         = Column(Float, nullable=True)
-    data_as_of              = Column(DateTime(timezone=True), nullable=True)
-    computed_at             = Column(DateTime(timezone=True), default=_utcnow, index=True)
+    is_seasonal_adjusted = Column(Boolean, default=False)
+    is_low_confidence = Column(Boolean, default=False)
+    raw_price_usd = Column(Numeric(12, 4), nullable=True)
+    day_of_year_sin = Column(Float, nullable=True)
+    day_of_year_cos = Column(Float, nullable=True)
+    data_as_of = Column(DateTime(timezone=True), nullable=True)
+    computed_at = Column(DateTime(timezone=True), default=_utcnow, index=True)
 
     # Relationships
-    price_event  = relationship("PriceEvent", back_populates="feature_vectors")
+    price_event = relationship("PriceEvent", back_populates="feature_vectors")
     anomaly_logs = relationship("AnomalyLog", back_populates="feature_vector")
 
     __table_args__ = (
@@ -142,7 +158,9 @@ class FeatureVector(Base):
     )
 
     @classmethod
-    def from_feature_vector(cls, fv, price_event_id: Optional[int] = None) -> "FeatureVector":
+    def from_feature_vector(
+        cls, fv, price_event_id: Optional[int] = None
+    ) -> "FeatureVector":
         """Construct from a processing.features.FeatureVector instance."""
         return cls(
             price_event_id=price_event_id,
@@ -171,28 +189,30 @@ class FeatureVector(Base):
 # anomaly_log
 # ---------------------------------------------------------------------------
 
+
 class AnomalyLog(Base):
     """
     Anomaly detection result for one feature vector.
     Written by the detection layer for every scored event.
     """
+
     __tablename__ = "anomaly_log"
 
-    id            = Column(BigInteger, primary_key=True, autoincrement=True)
-    feature_id    = Column(BigInteger, ForeignKey("feature_vectors.id"), nullable=True)
-    commodity     = Column(Text, nullable=False, index=True)
-    region        = Column(Text, nullable=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    feature_id = Column(BigInteger, ForeignKey("feature_vectors.id"), nullable=True)
+    commodity = Column(Text, nullable=False, index=True)
+    region = Column(Text, nullable=True)
     anomaly_score = Column(Numeric(6, 4), nullable=True)
-    severity      = Column(Text, nullable=True)
+    severity = Column(Text, nullable=True)
     model_version = Column(Text, nullable=True)
-    is_anomaly    = Column(Boolean, default=False)
-    alerted       = Column(Boolean, default=False)
-    suppressed    = Column(Boolean, default=False)
-    alert_payload = Column(JSONB, nullable=True)    # full alert dict when alerted=True
-    detected_at   = Column(DateTime(timezone=True), default=_utcnow, index=True)
+    is_anomaly = Column(Boolean, default=False)
+    alerted = Column(Boolean, default=False)
+    suppressed = Column(Boolean, default=False)
+    alert_payload = Column(JSONB, nullable=True)  # full alert dict when alerted=True
+    detected_at = Column(DateTime(timezone=True), default=_utcnow, index=True)
 
     # Relationships
-    feature_vector    = relationship("FeatureVector", back_populates="anomaly_logs")
+    feature_vector = relationship("FeatureVector", back_populates="anomaly_logs")
     geopolitical_tags = relationship(
         "GeopoliticalEvent",
         secondary="anomaly_geo_tags",
@@ -238,19 +258,21 @@ class AnomalyLog(Base):
 # geopolitical_events
 # ---------------------------------------------------------------------------
 
+
 class GeopoliticalEvent(Base):
     """
     Named geopolitical scenario that may influence price anomalies.
     Tags are applied post-hoc to AnomalyLog entries for v2 training data.
     """
+
     __tablename__ = "geopolitical_events"
 
-    id          = Column(BigInteger, primary_key=True, autoincrement=True)
-    tag         = Column(Text, unique=True, nullable=False, index=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    tag = Column(Text, unique=True, nullable=False, index=True)
     description = Column(Text, nullable=True)
-    started_at  = Column(DateTime(timezone=True), nullable=True)
-    ended_at    = Column(DateTime(timezone=True), nullable=True)
-    created_at  = Column(DateTime(timezone=True), default=_utcnow)
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    ended_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=_utcnow)
 
     anomaly_logs = relationship(
         "AnomalyLog",
@@ -270,7 +292,9 @@ anomaly_geo_tags = Table(
     "anomaly_geo_tags",
     Base.metadata,
     Column("anomaly_id", BigInteger, ForeignKey("anomaly_log.id"), primary_key=True),
-    Column("event_id",   BigInteger, ForeignKey("geopolitical_events.id"), primary_key=True),
+    Column(
+        "event_id", BigInteger, ForeignKey("geopolitical_events.id"), primary_key=True
+    ),
 )
 
 
@@ -278,20 +302,22 @@ anomaly_geo_tags = Table(
 # consumer_lag_log
 # ---------------------------------------------------------------------------
 
+
 class ConsumerLagLog(Base):
     """
     Kafka consumer group lag snapshot.
     Written every LAG_LOG_INTERVAL_S seconds by the consumer.
     High lag = pipeline is falling behind = alerts are delayed.
     """
+
     __tablename__ = "consumer_lag_log"
 
-    id             = Column(BigInteger, primary_key=True, autoincrement=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
     consumer_group = Column(Text, nullable=False)
-    topic          = Column(Text, nullable=False)
-    partition      = Column(SmallInteger, nullable=False)
-    lag_messages   = Column(BigInteger, nullable=True)
-    recorded_at    = Column(DateTime(timezone=True), default=_utcnow, index=True)
+    topic = Column(Text, nullable=False)
+    partition = Column(SmallInteger, nullable=False)
+    lag_messages = Column(BigInteger, nullable=True)
+    recorded_at = Column(DateTime(timezone=True), default=_utcnow, index=True)
 
     __table_args__ = (
         Index("idx_consumer_lag_time", "recorded_at"),

@@ -57,17 +57,18 @@ log = logging.getLogger("retrain")
 # Config
 # ---------------------------------------------------------------------------
 
-MIN_TRAINING_SAMPLES  = int(os.getenv("RETRAIN_MIN_SAMPLES", "500"))
-DRIFT_TOLERANCE       = float(os.getenv("RETRAIN_DRIFT_TOLERANCE", "0.15"))
-MIN_MEDIAN_SCORE      = 0.25    # p50 must be above this — model must see something
-MIN_SCORE_SPREAD      = 0.02    # p75-p25 must be above this — model must discriminate
-CONTAMINATION         = float(os.getenv("ANOMALY_THRESHOLD", "0.05"))
-ANOMALY_THRESHOLD     = float(os.getenv("ANOMALY_THRESHOLD", "0.55"))
+MIN_TRAINING_SAMPLES = int(os.getenv("RETRAIN_MIN_SAMPLES", "500"))
+DRIFT_TOLERANCE = float(os.getenv("RETRAIN_DRIFT_TOLERANCE", "0.15"))
+MIN_MEDIAN_SCORE = 0.25  # p50 must be above this — model must see something
+MIN_SCORE_SPREAD = 0.02  # p75-p25 must be above this — model must discriminate
+CONTAMINATION = float(os.getenv("ANOMALY_THRESHOLD", "0.05"))
+ANOMALY_THRESHOLD = float(os.getenv("ANOMALY_THRESHOLD", "0.55"))
 
 
 # ---------------------------------------------------------------------------
 # Data loading from PostgreSQL
 # ---------------------------------------------------------------------------
+
 
 def load_feature_vectors(days: int) -> np.ndarray:
     """
@@ -82,6 +83,7 @@ def load_feature_vectors(days: int) -> np.ndarray:
     after strict filtering.
     """
     from dotenv import load_dotenv
+
     load_dotenv()
 
     from storage.db import get_session
@@ -117,21 +119,26 @@ def load_feature_vectors(days: int) -> np.ndarray:
     if not rows:
         raise ValueError(f"No feature vectors found in the last {days} days.")
 
-    log.info("Loaded %d feature vectors from PostgreSQL (last %d days)", len(rows), days)
+    log.info(
+        "Loaded %d feature vectors from PostgreSQL (last %d days)", len(rows), days
+    )
 
-    X = np.array([
+    X = np.array(
         [
-            float(r.seasonal_adjusted_price or r.raw_price_usd or 0),
-            float(r.rolling_7d_avg or 0),
-            float(r.rolling_30d_std or 0),
-            float(r.momentum or 0),
-            float(r.energy_lag_corr or 0),
-            float(r.fertilizer_index_delta or 0),
-            float(r.day_of_year_sin or 0),
-            float(r.day_of_year_cos or 0),
-        ]
-        for r in rows
-    ], dtype=float)
+            [
+                float(r.seasonal_adjusted_price or r.raw_price_usd or 0),
+                float(r.rolling_7d_avg or 0),
+                float(r.rolling_30d_std or 0),
+                float(r.momentum or 0),
+                float(r.energy_lag_corr or 0),
+                float(r.fertilizer_index_delta or 0),
+                float(r.day_of_year_sin or 0),
+                float(r.day_of_year_cos or 0),
+            ]
+            for r in rows
+        ],
+        dtype=float,
+    )
 
     # Sanity check — drop rows with NaN/Inf
     mask = np.all(np.isfinite(X), axis=1)
@@ -147,6 +154,7 @@ def load_feature_vectors(days: int) -> np.ndarray:
 # Evaluation
 # ---------------------------------------------------------------------------
 
+
 def evaluate_model(model: SentinelModel, X_val: np.ndarray) -> dict:
     """Score the validation set and return evaluation metrics."""
     scores = model.score_batch(X_val)
@@ -155,22 +163,25 @@ def evaluate_model(model: SentinelModel, X_val: np.ndarray) -> dict:
     anomaly_rate = float(flagged.mean())
 
     return {
-        "n_val_samples":   len(scores),
-        "anomaly_rate":    round(anomaly_rate, 4),
-        "score_min":       round(float(scores.min()), 4),
-        "score_p25":       round(float(np.percentile(scores, 25)), 4),
-        "score_p50":       round(float(np.percentile(scores, 50)), 4),
-        "score_p75":       round(float(np.percentile(scores, 75)), 4),
-        "score_max":       round(float(scores.max()), 4),
-        "score_spread":    round(float(np.percentile(scores, 75) - np.percentile(scores, 25)), 4),
-        "threshold_used":  ANOMALY_THRESHOLD,
-        "contamination":   CONTAMINATION,
+        "n_val_samples": len(scores),
+        "anomaly_rate": round(anomaly_rate, 4),
+        "score_min": round(float(scores.min()), 4),
+        "score_p25": round(float(np.percentile(scores, 25)), 4),
+        "score_p50": round(float(np.percentile(scores, 50)), 4),
+        "score_p75": round(float(np.percentile(scores, 75)), 4),
+        "score_max": round(float(scores.max()), 4),
+        "score_spread": round(
+            float(np.percentile(scores, 75) - np.percentile(scores, 25)), 4
+        ),
+        "threshold_used": ANOMALY_THRESHOLD,
+        "contamination": CONTAMINATION,
     }
 
 
 # ---------------------------------------------------------------------------
 # Promotion gate
 # ---------------------------------------------------------------------------
+
 
 def should_promote(metrics: dict, prev_version: str | None) -> tuple[bool, str]:
     """
@@ -181,8 +192,11 @@ def should_promote(metrics: dict, prev_version: str | None) -> tuple[bool, str]:
     p50 = metrics["score_p50"]
     spread = metrics["score_spread"]
 
-    if n < int(MIN_TRAINING_SAMPLES * 0.2):   # val set too small
-        return False, f"Validation set too small: {n} < {int(MIN_TRAINING_SAMPLES * 0.2)}"
+    if n < int(MIN_TRAINING_SAMPLES * 0.2):  # val set too small
+        return (
+            False,
+            f"Validation set too small: {n} < {int(MIN_TRAINING_SAMPLES * 0.2)}",
+        )
 
     drift = abs(rate - CONTAMINATION)
     if drift > DRIFT_TOLERANCE:
@@ -192,7 +206,10 @@ def should_promote(metrics: dict, prev_version: str | None) -> tuple[bool, str]:
         )
 
     if p50 < MIN_MEDIAN_SCORE:
-        return False, f"Median score too low: {p50} < {MIN_MEDIAN_SCORE} — model not detecting"
+        return (
+            False,
+            f"Median score too low: {p50} < {MIN_MEDIAN_SCORE} — model not detecting",
+        )
 
     if spread < MIN_SCORE_SPREAD:
         return False, (
@@ -205,6 +222,7 @@ def should_promote(metrics: dict, prev_version: str | None) -> tuple[bool, str]:
 # ---------------------------------------------------------------------------
 # Version string
 # ---------------------------------------------------------------------------
+
 
 def next_version(models_dir: Path) -> str:
     """Auto-increment patch version from latest.txt."""
@@ -224,16 +242,21 @@ def next_version(models_dir: Path) -> str:
 # Save rejected model for analysis
 # ---------------------------------------------------------------------------
 
-def save_rejected(model: SentinelModel, metrics: dict, reason: str, models_dir: Path) -> None:
+
+def save_rejected(
+    model: SentinelModel, metrics: dict, reason: str, models_dir: Path
+) -> None:
     """Save the rejected model with a .rejected suffix for post-mortem."""
     import joblib
+
     version = model.metadata.model_version
     rejected_path = models_dir / f"sentinel_{version}.rejected.pkl"
     meta_path = models_dir / f"sentinel_{version}.rejected.meta.json"
 
     joblib.dump(
         {"iso_forest": model._iso_forest, "scaler": model._scaler},
-        rejected_path, compress=3,
+        rejected_path,
+        compress=3,
     )
     meta = model.metadata.to_dict()
     meta["rejection_reason"] = reason
@@ -245,6 +268,7 @@ def save_rejected(model: SentinelModel, metrics: dict, reason: str, models_dir: 
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+
 
 def run(args: argparse.Namespace) -> int:
     """
@@ -268,7 +292,8 @@ def run(args: argparse.Namespace) -> int:
         log.error(
             "Insufficient training data: %d samples < minimum %d. "
             "Run more producers to accumulate data.",
-            len(X), MIN_TRAINING_SAMPLES,
+            len(X),
+            MIN_TRAINING_SAMPLES,
         )
         return 1
 
@@ -324,11 +349,13 @@ def run(args: argparse.Namespace) -> int:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Retrain Food Price Sentinel model from PostgreSQL")
-    parser.add_argument("--days",         type=int,   default=90,           help="Days of history to use")
-    parser.add_argument("--version",      default="auto",                   help="Version string or 'auto'")
-    parser.add_argument("--n-estimators", type=int,   default=200)
-    parser.add_argument("--seed",         type=int,   default=42)
-    parser.add_argument("--models-dir",   default=str(MODELS_DIR))
+    parser = argparse.ArgumentParser(
+        description="Retrain Food Price Sentinel model from PostgreSQL"
+    )
+    parser.add_argument("--days", type=int, default=90, help="Days of history to use")
+    parser.add_argument("--version", default="auto", help="Version string or 'auto'")
+    parser.add_argument("--n-estimators", type=int, default=200)
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--models-dir", default=str(MODELS_DIR))
     args = parser.parse_args()
     sys.exit(run(args))

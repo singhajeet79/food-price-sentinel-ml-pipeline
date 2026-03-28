@@ -40,9 +40,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-sys_path_hack = True   # removed when package structure is finalised
+sys_path_hack = True  # removed when package structure is finalised
 if sys_path_hack:
     import sys
+
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from detection.model import SentinelModel, MODELS_DIR  # noqa: E402
@@ -57,40 +58,43 @@ ANOMALY_THRESHOLD: float = float(os.getenv("ANOMALY_THRESHOLD", "0.55"))
 # Result dataclass
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ScoredResult:
     """The output of scoring one FeatureVector."""
+
     commodity: str
     region: str
     data_as_of: datetime
     scored_at: datetime
 
-    normalised_score: float         # [0, 1] — higher = more anomalous
-    severity: Optional[str]         # None | LOW | MEDIUM | HIGH | CRITICAL
-    is_anomaly: bool                # True if score >= ANOMALY_THRESHOLD
-    is_low_confidence: bool         # propagated from FeatureVector
+    normalised_score: float  # [0, 1] — higher = more anomalous
+    severity: Optional[str]  # None | LOW | MEDIUM | HIGH | CRITICAL
+    is_anomaly: bool  # True if score >= ANOMALY_THRESHOLD
+    is_low_confidence: bool  # propagated from FeatureVector
 
     model_version: str
-    feature_snapshot: dict          # the feature values that produced this score
+    feature_snapshot: dict  # the feature values that produced this score
 
     def to_dict(self) -> dict:
         return {
-            "commodity":         self.commodity,
-            "region":            self.region,
-            "data_as_of":        self.data_as_of.isoformat(),
-            "scored_at":         self.scored_at.isoformat(),
-            "normalised_score":  self.normalised_score,
-            "severity":          self.severity,
-            "is_anomaly":        self.is_anomaly,
+            "commodity": self.commodity,
+            "region": self.region,
+            "data_as_of": self.data_as_of.isoformat(),
+            "scored_at": self.scored_at.isoformat(),
+            "normalised_score": self.normalised_score,
+            "severity": self.severity,
+            "is_anomaly": self.is_anomaly,
             "is_low_confidence": self.is_low_confidence,
-            "model_version":     self.model_version,
-            "feature_snapshot":  self.feature_snapshot,
+            "model_version": self.model_version,
+            "feature_snapshot": self.feature_snapshot,
         }
 
 
 # ---------------------------------------------------------------------------
 # Scorer
 # ---------------------------------------------------------------------------
+
 
 class Scorer:
     """
@@ -132,7 +136,8 @@ class Scorer:
             log.warning(
                 "No model loaded — cannot score %s/%s. "
                 "Run detection/train.py to create an initial model.",
-                fv.commodity, fv.region,
+                fv.commodity,
+                fv.region,
             )
             return None
 
@@ -140,10 +145,13 @@ class Scorer:
 
         # Guard against invalid values
         import math
+
         if any(math.isnan(v) or math.isinf(v) for v in feature_array):
             log.warning(
                 "Invalid feature values for %s/%s — skipping score. values=%s",
-                fv.commodity, fv.region, feature_array,
+                fv.commodity,
+                fv.region,
+                feature_array,
             )
             return None
 
@@ -164,13 +172,13 @@ class Scorer:
                 model_version=self._loaded_version or "unknown",
                 feature_snapshot={
                     "seasonal_adjusted_price": fv.seasonal_adjusted_price,
-                    "rolling_7d_avg":          fv.rolling_7d_avg,
-                    "rolling_30d_std":         fv.rolling_30d_std,
-                    "momentum":                fv.momentum,
-                    "energy_lag_corr":         fv.energy_lag_corr,
-                    "fertilizer_index_delta":  fv.fertilizer_index_delta,
-                    "day_of_year_sin":         fv.day_of_year_sin,
-                    "day_of_year_cos":         fv.day_of_year_cos,
+                    "rolling_7d_avg": fv.rolling_7d_avg,
+                    "rolling_30d_std": fv.rolling_30d_std,
+                    "momentum": fv.momentum,
+                    "energy_lag_corr": fv.energy_lag_corr,
+                    "fertilizer_index_delta": fv.fertilizer_index_delta,
+                    "day_of_year_sin": fv.day_of_year_sin,
+                    "day_of_year_cos": fv.day_of_year_cos,
                 },
             )
 
@@ -180,7 +188,10 @@ class Scorer:
         except Exception as exc:
             log.error(
                 "Scoring failed for %s/%s: %s",
-                fv.commodity, fv.region, exc, exc_info=True,
+                fv.commodity,
+                fv.region,
+                exc,
+                exc_info=True,
             )
             return None
 
@@ -223,7 +234,8 @@ class Scorer:
         if current != self._loaded_version:
             log.info(
                 "Model version changed on disk: %s → %s. Hot-reloading.",
-                self._loaded_version, current,
+                self._loaded_version,
+                current,
             )
             self._load_model()
 
@@ -237,13 +249,18 @@ class Scorer:
             log.warning(
                 "ANOMALY DETECTED | %s/%s | score=%.4f severity=%s "
                 "low_conf=%s model=%s",
-                result.commodity, result.region,
-                result.normalised_score, result.severity,
-                result.is_low_confidence, result.model_version,
+                result.commodity,
+                result.region,
+                result.normalised_score,
+                result.severity,
+                result.is_low_confidence,
+                result.model_version,
             )
         else:
             log.debug(
                 "Normal | %s/%s | score=%.4f model=%s",
-                result.commodity, result.region,
-                result.normalised_score, result.model_version,
+                result.commodity,
+                result.region,
+                result.normalised_score,
+                result.model_version,
             )
