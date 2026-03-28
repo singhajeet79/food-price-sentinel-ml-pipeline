@@ -173,3 +173,4 @@ jobs:
           kubectl get namespace food-price-sentinel
           kubectl get configmap sentinel-config -n food-price-sentinel
           echo "Namespace and configmap OK"
+# CI fix Sat Mar 28 02:36:38 PM IST 2026
