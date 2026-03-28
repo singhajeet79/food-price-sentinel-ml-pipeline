@@ -268,7 +268,7 @@ function HistoryChart({ history }) {
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="#0f1f0f" />
         <XAxis dataKey="time" tick={{ fill: "#2a4a2a", fontSize: 10 }} tickLine={false} />
-        <YAxis domain={[0, 1]} tick={{ fill: "#2a4a2a", fontSize: 10 }} tickLine={false} />
+        <YAxis domain={["dataMin - 0.05", "dataMax + 0.05"]} tick={{ fill: "#2a4a2a", fontSize: 10 }} tickLine={false} />
         <Tooltip
           contentStyle={{
             background: "#080f08", border: "1px solid #1a3a1a",

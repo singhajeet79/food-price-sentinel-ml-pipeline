@@ -126,6 +126,9 @@ def _simulate_price(commodity: FoodCommodity, as_of: datetime) -> dict:
     shock = random.choice([0.0] * 19 + [random.uniform(-0.15, 0.20)])
 
     raw_price_per_unit = baseline * seasonal_factor * (1 + noise + shock)
+    # Hard ceiling: price cannot exceed 3× baseline regardless of walk
+    raw_price_per_unit = min(raw_price_per_unit, baseline * 3.0)
+    raw_price_per_unit = max(raw_price_per_unit, baseline * 0.3)
 
     unit_raw, conversion_factor = _UNIT_RAW[commodity]
 

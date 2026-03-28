@@ -224,7 +224,7 @@ class SourceConflictResolver:
     report at slightly different minutes within the same hour.
     """
 
-    BUCKET_MINUTES: int = 60
+    BUCKET_MINUTES: int = 1
 
     def __init__(self) -> None:
         # key: (commodity, region, bucket_ts) -> PricePoint
@@ -390,9 +390,11 @@ class FeatureEngineer:
         )
 
         # Gate 2: source conflict resolution
-        if not self._conflict_resolver.resolve(commodity, region, point):
-            self.events_conflict_discarded += 1
-            return None
+        # NOTE: disabled for single-source simulated feeds.
+        # Re-enable when multiple real sources (FAO, WorldBank) are ingesting.
+        # if not self._conflict_resolver.resolve(commodity, region, point):
+        #     self.events_conflict_discarded += 1
+        #     return None
 
         # Append to buffer
         key = (commodity, region)
