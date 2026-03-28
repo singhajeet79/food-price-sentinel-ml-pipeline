@@ -23,6 +23,18 @@ const COMMODITY_ICONS = {
 };
 
 
+
+// ─── Per-commodity chart colors ─────────────────────────────────────────────
+const COMMODITY_COLORS = {
+  wheat:    "#f5c400",   // amber
+  rice:     "#4ade80",   // green
+  maize:    "#fb923c",   // orange
+  soybeans: "#60a5fa",   // blue
+  palm_oil: "#a78bfa",   // purple
+  sugar:    "#f472b6",   // pink
+  barley:   "#34d399",   // teal
+};
+
 // ─── Drift signal config ────────────────────────────────────────────────────
 const DRIFT_COLOR = {
   STABLE:  { bg: "#0a1f0a", border: "#1a4a1a", text: "#4ade80", icon: "●" },
@@ -314,10 +326,10 @@ function AlertCard({ alert }) {
   );
 }
 
-function HistoryChart({ history }) {
-  if (!history?.records?.length) return (
+function HistoryChart({ byCommodity }) {
+  if (!byCommodity || Object.keys(byCommodity).length === 0) return (
     <div style={{
-      height: 200, display: "flex", alignItems: "center",
+      height: 220, display: "flex", alignItems: "center",
       justifyContent: "center", color: "#2a4a2a", fontSize: 12,
       letterSpacing: "0.08em",
     }}>
@@ -325,42 +337,77 @@ function HistoryChart({ history }) {
     </div>
   );
 
-  const data = [...history.records]
-    .reverse()
-    .map(r => ({
-      time: new Date(r.detected_at).toISOString().slice(11, 19),
-      score: parseFloat(r.anomaly_score) || 0,
-      severity: r.severity,
-    }));
+  const commodities = Object.keys(byCommodity).filter(
+    c => Array.isArray(byCommodity[c]) && byCommodity[c].length > 0
+  );
+
+  if (commodities.length === 0) return (
+    <div style={{ height: 220, display: "flex", alignItems: "center",
+      justifyContent: "center", color: "#2a4a2a", fontSize: 12 }}>
+      AWAITING DATA
+    </div>
+  );
+
+  // Sample to ~60 points per commodity for performance
+  const sampled = {};
+  commodities.forEach(c => {
+    const pts = Array.isArray(byCommodity[c]) ? byCommodity[c] : [];
+    const step = Math.max(1, Math.floor(pts.length / 60));
+    sampled[c] = pts.filter((_, i) => i % step === 0);
+  });
+
+  // Use longest series as X-axis backbone
+  const longest = commodities.reduce((a, b) =>
+    (sampled[a]?.length || 0) >= (sampled[b]?.length || 0) ? a : b, commodities[0]);
+
+  const data = (sampled[longest] || []).map((pt, i) => {
+    const row = { time: pt.time };
+    commodities.forEach(c => {
+      const match = sampled[c]?.[i];
+      if (match) row[c] = match.score;
+    });
+    return row;
+  });
 
   return (
-    <ResponsiveContainer width="100%" height={200}>
-      <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-        <defs>
-          <linearGradient id="scoreGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#4ade80" stopOpacity={0.3} />
-            <stop offset="95%" stopColor="#4ade80" stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="#0f1f0f" />
-        <XAxis dataKey="time" tick={{ fill: "#2a4a2a", fontSize: 10 }} tickLine={false} />
-        <YAxis domain={[(dataMin) => Math.max(0, dataMin - 0.05), (dataMax) => dataMax + 0.05]} tick={{ fill: "#2a4a2a", fontSize: 10 }} tickLine={false} />
+    <ResponsiveContainer width="100%" height={220}>
+      <LineChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#0a150a" />
+        <XAxis
+          dataKey="time"
+          tick={{ fill: "#2a4a2a", fontSize: 9 }}
+          tickLine={false}
+          interval="preserveStartEnd"
+        />
+        <YAxis
+          domain={[(dataMin) => Math.max(0, parseFloat((dataMin - 0.02).toFixed(3))), (dataMax) => parseFloat((dataMax + 0.02).toFixed(3))]}
+          tick={{ fill: "#2a4a2a", fontSize: 9 }}
+          tickLine={false}
+          tickCount={5}
+        />
         <Tooltip
           contentStyle={{
             background: "#080f08", border: "1px solid #1a3a1a",
-            borderRadius: 2, fontSize: 11, color: "#4ade80",
+            borderRadius: 2, fontSize: 10, color: "#7aaa7a",
           }}
+          formatter={(value, name) => [value?.toFixed(4), name]}
         />
         <ReferenceLine y={0.55} stroke="#f5c400" strokeDasharray="4 4" strokeWidth={1} />
         <ReferenceLine y={0.70} stroke="#ff6b00" strokeDasharray="4 4" strokeWidth={1} />
         <ReferenceLine y={0.85} stroke="#ff2d2d" strokeDasharray="4 4" strokeWidth={1} />
-        <Area
-          type="monotone" dataKey="score"
-          stroke="#4ade80" strokeWidth={1.5}
-          fill="url(#scoreGrad)"
-          dot={false}
-        />
-      </AreaChart>
+        {commodities.map(c => (
+          <Line
+            key={c}
+            type="monotone"
+            dataKey={c}
+            stroke={COMMODITY_COLORS[c] || "#4ade80"}
+            strokeWidth={1.5}
+            dot={false}
+            connectNulls={false}
+            isAnimationActive={false}
+          />
+        ))}
+      </LineChart>
     </ResponsiveContainer>
   );
 }
@@ -409,6 +456,7 @@ export default function App() {
   const { data: alerts }  = useApi("/alerts/active");
   const { data: stats }   = useApi("/history/stats?days=1", POLL_MS);
   const { data: history } = useApi("/history?days=1&page_size=100", POLL_MS);
+  const { data: byCommodity } = useApi("/history/grouped?days=1&page_size=200", POLL_MS);
 
   const hasAlerts = alerts?.count > 0;
   const anomalyCount = stats?.total_anomalies ?? 0;
@@ -558,20 +606,20 @@ export default function App() {
               }}>
                 Anomaly Score Timeline · 24h
               </div>
-              <HistoryChart history={history} />
+              <HistoryChart byCommodity={byCommodity} />
               <div style={{
-                display: "flex", gap: 20, marginTop: 12, fontSize: 10,
-                color: "#2a4a2a",
+                display: "flex", gap: 16, marginTop: 12, fontSize: 10,
+                flexWrap: "wrap",
               }}>
-                <span>
-                  <span style={{ color: "#f5c400" }}>── </span>MEDIUM (0.55)
-                </span>
-                <span>
-                  <span style={{ color: "#ff6b00" }}>── </span>HIGH (0.70)
-                </span>
-                <span>
-                  <span style={{ color: "#ff2d2d" }}>── </span>CRITICAL (0.85)
-                </span>
+                <span style={{ color: "#f5c400" }}>── MEDIUM (0.55)</span>
+                <span style={{ color: "#ff6b00" }}>── HIGH (0.70)</span>
+                <span style={{ color: "#ff2d2d" }}>── CRITICAL (0.85)</span>
+                <span style={{ marginLeft: 8, color: "#1a3a1a" }}>│</span>
+                {Object.entries(COMMODITY_COLORS).map(([c, col]) => (
+                  <span key={c} style={{ color: col }}>
+                    ── {c}
+                  </span>
+                ))}
               </div>
             </div>
 
