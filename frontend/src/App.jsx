@@ -318,9 +318,20 @@ function AlertCard({ alert }) {
         </div>
       )}
 
-      <div style={{ marginTop: 10, fontSize: 10, color: "#2a4a2a" }}>
-        score: {alert.anomaly_score?.toFixed(4)} ·{" "}
-        {new Date(alert.triggered_at).toISOString().replace("T", " ").slice(0, 19)} UTC
+      <div style={{ marginTop: 10, fontSize: 10, color: "#2a4a2a", display: "flex", justifyContent: "space-between" }}>
+        <span>score: {alert.anomaly_score?.toFixed(4)} · {new Date(alert.triggered_at).toISOString().replace("T", " ").slice(0, 19)} UTC</span>
+        {alert.cooldown_until && (() => {
+          const secsLeft = Math.max(0, Math.floor((new Date(alert.cooldown_until) - Date.now()) / 1000));
+          const h = Math.floor(secsLeft / 3600);
+          const m = Math.floor((secsLeft % 3600) / 60);
+          const s = secsLeft % 60;
+          const fmt = h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`;
+          return (
+            <span style={{ color: secsLeft < 300 ? "#ff6b00" : "#2a4a2a" }}>
+              cooldown {secsLeft > 0 ? fmt : "expired"}
+            </span>
+          );
+        })()}
       </div>
     </div>
   );
@@ -352,8 +363,13 @@ function HistoryChart({ byCommodity }) {
   const longest = commodities.reduce((a, b) =>
     (sampled[a]?.length || 0) >= (sampled[b]?.length || 0) ? a : b, commodities[0]);
 
+  const totalPts = (sampled[longest] || []).length;
   const data = (sampled[longest] || []).map((pt, i) => {
-    const row = { time: pt.time };
+    const minutesAgo = Math.round((totalPts - 1 - i) * (24 * 60 / Math.max(1, totalPts)));
+    const label = minutesAgo === 0 ? "now"
+      : minutesAgo < 60 ? `-${minutesAgo}m`
+      : `-${Math.round(minutesAgo / 60)}h`;
+    const row = { time: label };
     commodities.forEach(c => {
       const match = sampled[c]?.[i];
       if (match) row[c] = match.score;
@@ -475,6 +491,13 @@ export default function App() {
   const { data: stats }   = useApi("/history/stats?days=1", POLL_MS);
   const { data: history } = useApi("/history?days=1&page_size=100", POLL_MS);
   const { data: byCommodity } = useApi("/history/grouped?days=1&page_size=40", POLL_MS);
+
+  // Live countdown tick — updates every second for alert countdowns
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   const hasAlerts = alerts?.count > 0;
   const anomalyCount = stats?.total_anomalies ?? 0;

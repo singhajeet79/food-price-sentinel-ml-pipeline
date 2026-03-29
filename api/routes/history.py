@@ -34,6 +34,7 @@ log = logging.getLogger(__name__)
 # Response models
 # ---------------------------------------------------------------------------
 
+
 class AnomalyRecord(BaseModel):
     id: int
     commodity: str
@@ -77,6 +78,7 @@ class StatsResponse(BaseModel):
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _orm_to_record(row: AnomalyLog) -> AnomalyRecord:
     return AnomalyRecord(
         id=row.id,
@@ -96,6 +98,7 @@ def _orm_to_record(row: AnomalyLog) -> AnomalyRecord:
 # Routes
 # ---------------------------------------------------------------------------
 
+
 @router.get("", response_model=HistoryResponse)
 def get_history(
     page: int = Query(1, ge=1),
@@ -114,12 +117,11 @@ def get_history(
     query = session.query(AnomalyLog).filter(AnomalyLog.detected_at >= cutoff)
 
     if anomalies_only:
-        query = query.filter(AnomalyLog.is_anomaly == True)
+        query = query.filter(AnomalyLog.is_anomaly)
 
     total = query.count()
     records = (
-        query
-        .order_by(desc(AnomalyLog.detected_at))
+        query.order_by(desc(AnomalyLog.detected_at))
         .offset((page - 1) * page_size)
         .limit(page_size)
         .all()
@@ -146,12 +148,12 @@ def get_stats(
 
     base_q = session.query(AnomalyLog).filter(
         AnomalyLog.detected_at >= cutoff,
-        AnomalyLog.is_anomaly == True,
+        AnomalyLog.is_anomaly,
     )
 
     total_anomalies = base_q.count()
-    total_alerts    = base_q.filter(AnomalyLog.alerted == True).count()
-    total_suppressed = base_q.filter(AnomalyLog.suppressed == True).count()
+    total_alerts = base_q.filter(AnomalyLog.alerted).count()
+    total_suppressed = base_q.filter(AnomalyLog.suppressed).count()
 
     # By severity
     severity_rows = (
@@ -160,7 +162,7 @@ def get_stats(
             func.count(AnomalyLog.id).label("count"),
             func.avg(AnomalyLog.anomaly_score).label("avg_score"),
         )
-        .filter(AnomalyLog.detected_at >= cutoff, AnomalyLog.is_anomaly == True)
+        .filter(AnomalyLog.detected_at >= cutoff, AnomalyLog.is_anomaly)
         .group_by(AnomalyLog.severity)
         .all()
     )
@@ -179,7 +181,7 @@ def get_stats(
             AnomalyLog.commodity,
             func.count(AnomalyLog.id).label("count"),
         )
-        .filter(AnomalyLog.detected_at >= cutoff, AnomalyLog.is_anomaly == True)
+        .filter(AnomalyLog.detected_at >= cutoff, AnomalyLog.is_anomaly)
         .group_by(AnomalyLog.commodity)
         .order_by(desc("count"))
         .limit(5)
@@ -217,8 +219,10 @@ def get_history_by_commodity(
 
     # Query each commodity separately to ensure equal representation
     from sqlalchemy import distinct
+
     commodities = [
-        r[0] for r in session.query(distinct(AnomalyLog.commodity))
+        r[0]
+        for r in session.query(distinct(AnomalyLog.commodity))
         .filter(AnomalyLog.detected_at >= cutoff)
         .all()
     ]

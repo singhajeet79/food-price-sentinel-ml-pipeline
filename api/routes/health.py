@@ -29,13 +29,13 @@ router = APIRouter()
 
 
 class BackendStatus(BaseModel):
-    status: str             # "ok" | "degraded" | "down"
+    status: str  # "ok" | "degraded" | "down"
     latency_ms: Optional[float] = None
     error: Optional[str] = None
 
 
 class HealthResponse(BaseModel):
-    status: str             # "healthy" | "degraded" | "unhealthy"
+    status: str  # "healthy" | "degraded" | "unhealthy"
     version: str = "1.0.0"
     backends: dict[str, BackendStatus]
 
@@ -43,6 +43,7 @@ class HealthResponse(BaseModel):
 def _check_valkey() -> BackendStatus:
     try:
         from api.dependencies import get_valkey_client
+
         client = get_valkey_client()
         start = time.monotonic()
         client.ping()
@@ -56,6 +57,7 @@ def _check_postgres() -> BackendStatus:
     try:
         from sqlalchemy import text
         from api.dependencies import get_db_engine
+
         engine = get_db_engine()
         start = time.monotonic()
         with engine.connect() as conn:
@@ -73,6 +75,7 @@ def _check_kafka() -> BackendStatus:
     """
     try:
         from kafka import KafkaAdminClient
+
         start = time.monotonic()
         admin = KafkaAdminClient(
             bootstrap_servers=os.getenv("KAFKA_BOOTSTRAP_SERVERS"),
@@ -99,9 +102,9 @@ def health_check():
     503 if critically degraded (Valkey + PostgreSQL both down).
     """
     backends = {
-        "valkey":     _check_valkey(),
+        "valkey": _check_valkey(),
         "postgresql": _check_postgres(),
-        "kafka":      _check_kafka(),
+        "kafka": _check_kafka(),
     }
 
     down = [k for k, v in backends.items() if v.status == "down"]
@@ -169,7 +172,10 @@ def get_drift_status():
                     continue
 
         if not results:
-            return {"signal": "UNKNOWN", "reason": "Drift keys exist but values are empty."}
+            return {
+                "signal": "UNKNOWN",
+                "reason": "Drift keys exist but values are empty.",
+            }
 
         latest = max(results, key=lambda r: r.get("checked_at", ""))
         return latest
