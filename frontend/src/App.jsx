@@ -370,8 +370,8 @@ function HistoryChart({ byCommodity }) {
   });
 
   return (
-    <ResponsiveContainer width="100%" height={220}>
-      <LineChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+    <ResponsiveContainer width="100%" height={200}>
+      <LineChart data={data} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#0a150a" />
         <XAxis
           dataKey="time"
@@ -401,7 +401,8 @@ function HistoryChart({ byCommodity }) {
             type="monotone"
             dataKey={c}
             stroke={COMMODITY_COLORS[c] || "#4ade80"}
-            strokeWidth={1.5}
+            strokeWidth={1}
+            strokeOpacity={0.75}
             dot={false}
             connectNulls={false}
             isAnimationActive={false}
@@ -456,7 +457,7 @@ export default function App() {
   const { data: alerts }  = useApi("/alerts/active");
   const { data: stats }   = useApi("/history/stats?days=1", POLL_MS);
   const { data: history } = useApi("/history?days=1&page_size=100", POLL_MS);
-  const { data: byCommodity } = useApi("/history/grouped?days=1&page_size=200", POLL_MS);
+  const { data: byCommodity } = useApi("/history/grouped?days=1&page_size=40", POLL_MS);
 
   const hasAlerts = alerts?.count > 0;
   const anomalyCount = stats?.total_anomalies ?? 0;

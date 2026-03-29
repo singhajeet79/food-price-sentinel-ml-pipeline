@@ -215,25 +215,35 @@ def get_history_by_commodity(
 
     cutoff = datetime.now(tz=timezone.utc) - timedelta(days=days)
 
-    rows = (
-        session.query(AnomalyLog)
+    # Query each commodity separately to ensure equal representation
+    from sqlalchemy import distinct
+    commodities = [
+        r[0] for r in session.query(distinct(AnomalyLog.commodity))
         .filter(AnomalyLog.detected_at >= cutoff)
-        .order_by(AnomalyLog.detected_at.asc())
-        .limit(page_size * 7)   # up to 7 commodities
         .all()
-    )
+    ]
 
     grouped: dict[str, list] = {}
-    for row in rows:
-        if not row.commodity or row.anomaly_score is None:
-            continue
-        if row.commodity not in grouped:
-            grouped[row.commodity] = []
-        grouped[row.commodity].append({
-            "time": row.detected_at.strftime("%H:%M:%S") if row.detected_at else "",
-            "score": round(float(row.anomaly_score), 4),
-            "is_anomaly": row.is_anomaly,
-        })
+    for commodity in commodities:
+        rows = (
+            session.query(AnomalyLog)
+            .filter(
+                AnomalyLog.detected_at >= cutoff,
+                AnomalyLog.commodity == commodity,
+                AnomalyLog.anomaly_score.isnot(None),
+            )
+            .order_by(AnomalyLog.detected_at.asc())
+            .limit(page_size)
+            .all()
+        )
+        grouped[commodity] = [
+            {
+                "time": row.detected_at.strftime("%H:%M:%S") if row.detected_at else "",
+                "score": round(float(row.anomaly_score), 4),
+                "is_anomaly": row.is_anomaly,
+            }
+            for row in rows
+        ]
 
     return grouped
 
