@@ -68,11 +68,26 @@ def _check_postgres() -> BackendStatus:
         return BackendStatus(status="down", error=str(exc))
 
 
+# Kafka check cache — avoids 2-3s broker round-trip on every /health call
+_kafka_cache: dict = {"status": None, "ts": 0.0}
+_KAFKA_CACHE_TTL = 60.0  # seconds
+
+
 def _check_kafka() -> BackendStatus:
     """
-    Lightweight Kafka check — verifies broker is reachable by
-    fetching metadata. Does not consume or produce any messages.
+    Lightweight Kafka check with 60s result cache.
+
+    The KafkaAdminClient round-trip to Aiven takes 2-3s — too slow to
+    run on every /health poll. We cache the last result and only re-check
+    after TTL expires.
     """
+    now = time.monotonic()
+    if (
+        _kafka_cache["status"] is not None
+        and (now - _kafka_cache["ts"]) < _KAFKA_CACHE_TTL
+    ):
+        return _kafka_cache["status"]
+
     try:
         from kafka import KafkaAdminClient
 
@@ -88,9 +103,13 @@ def _check_kafka() -> BackendStatus:
         admin.list_topics()
         admin.close()
         latency_ms = (time.monotonic() - start) * 1000
-        return BackendStatus(status="ok", latency_ms=round(latency_ms, 2))
+        result = BackendStatus(status="ok", latency_ms=round(latency_ms, 2))
     except Exception as exc:
-        return BackendStatus(status="degraded", error=str(exc))
+        result = BackendStatus(status="degraded", error=str(exc))
+
+    _kafka_cache["status"] = result
+    _kafka_cache["ts"] = time.monotonic()
+    return result
 
 
 @router.get("/health", response_model=HealthResponse)
