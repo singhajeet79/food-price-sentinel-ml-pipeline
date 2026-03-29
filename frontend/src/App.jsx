@@ -337,16 +337,8 @@ function HistoryChart({ byCommodity }) {
     </div>
   );
 
-  const commodities = Object.keys(byCommodity).filter(
-    c => Array.isArray(byCommodity[c]) && byCommodity[c].length > 0
-  );
-
-  if (commodities.length === 0) return (
-    <div style={{ height: 220, display: "flex", alignItems: "center",
-      justifyContent: "center", color: "#2a4a2a", fontSize: 12 }}>
-      AWAITING DATA
-    </div>
-  );
+  if (!byCommodity || typeof byCommodity !== "object" || Array.isArray(byCommodity) ) return (<div style={{ height: 200, display: "flex", alignItems: "center", justifyContent: "center", color: "#2a4a2a", fontSize: 12, letterSpacing: "0.08em" }}>AWAITING DATA</div>);
+  const commodities = Object.keys(byCommodity);
 
   // Sample to ~60 points per commodity for performance
   const sampled = {};
@@ -370,14 +362,14 @@ function HistoryChart({ byCommodity }) {
   });
 
   return (
-    <ResponsiveContainer width="100%" height={200}>
-      <LineChart data={data} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+    <ResponsiveContainer width="100%" height={220}>
+      <LineChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="#0a150a" />
         <XAxis
           dataKey="time"
           tick={{ fill: "#2a4a2a", fontSize: 9 }}
           tickLine={false}
-          interval="preserveStartEnd"
+          interval={Math.floor(Math.max(1, data.length / 6))}
         />
         <YAxis
           domain={[(dataMin) => Math.max(0, parseFloat((dataMin - 0.02).toFixed(3))), (dataMax) => parseFloat((dataMax + 0.02).toFixed(3))]}
@@ -401,8 +393,7 @@ function HistoryChart({ byCommodity }) {
             type="monotone"
             dataKey={c}
             stroke={COMMODITY_COLORS[c] || "#4ade80"}
-            strokeWidth={1}
-            strokeOpacity={0.75}
+            strokeWidth={1.5}
             dot={false}
             connectNulls={false}
             isAnimationActive={false}
@@ -413,8 +404,20 @@ function HistoryChart({ byCommodity }) {
   );
 }
 
-function CommodityRow({ commodity, count, avgScore }) {
+function CommodityRow({ commodity, count, avgScore, alertStatus }) {
   const bar = Math.min(100, (count / 10) * 100);
+  // alertStatus: "active" | "recent" | "none"
+  const barColor = alertStatus === "active"
+    ? "#ff2d2d"
+    : alertStatus === "recent"
+      ? "#ff6b00"
+      : COMMODITY_COLORS[commodity] || "#4ade80";
+  const labelColor = alertStatus === "active"
+    ? "#ff6b6b"
+    : alertStatus === "recent"
+      ? "#fb923c"
+      : "#7aaa7a";
+
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: 12,
@@ -424,9 +427,10 @@ function CommodityRow({ commodity, count, avgScore }) {
         {COMMODITY_ICONS[commodity] || "📊"}
       </span>
       <span style={{
-        fontSize: 12, color: "#7aaa7a", width: 90,
+        fontSize: 12, color: labelColor, width: 90,
         textTransform: "uppercase", letterSpacing: "0.06em",
         fontFamily: "'Barlow Condensed', sans-serif",
+        fontWeight: alertStatus === "active" ? 700 : 400,
       }}>
         {commodity}
       </span>
@@ -436,16 +440,29 @@ function CommodityRow({ commodity, count, avgScore }) {
       }}>
         <div style={{
           width: `${bar}%`, height: "100%",
-          background: avgScore > 0.7 ? "#ff6b00" : "#4ade80",
+          background: barColor,
           borderRadius: 2, transition: "width 0.6s ease",
+          boxShadow: alertStatus === "active" ? `0 0 6px ${barColor}` : "none",
         }} />
       </div>
       <span style={{
-        fontSize: 11, color: "#3a5a3a", width: 30,
+        fontSize: 11,
+        color: alertStatus === "active" ? "#ff6b6b" : "#3a5a3a",
+        width: 30,
         textAlign: "right", fontFamily: "'IBM Plex Mono', monospace",
       }}>
         {count}
       </span>
+      {alertStatus === "active" && (
+        <span style={{ fontSize: 9, color: "#ff2d2d", letterSpacing: "0.08em" }}>
+          ALERT
+        </span>
+      )}
+      {alertStatus === "recent" && (
+        <span style={{ fontSize: 9, color: "#ff6b00", letterSpacing: "0.08em" }}>
+          RECENT
+        </span>
+      )}
     </div>
   );
 }
@@ -639,14 +656,23 @@ export default function App() {
                 Anomalies by Commodity · 24h
               </div>
               {stats?.top_commodities?.length > 0 ? (
-                stats.top_commodities.map(c => (
-                  <CommodityRow
-                    key={c.commodity}
-                    commodity={c.commodity}
-                    count={c.anomaly_count}
-                    avgScore={stats?.by_severity?.[0]?.avg_score || 0}
-                  />
-                ))
+                stats.top_commodities.map(c => {
+                  // Derive alert status from active alerts
+                  const activeAlerts = alerts?.alerts || [];
+                  const hasActive = activeAlerts.some(
+                    a => a.commodity === c.commodity
+                  );
+                  const alertStatus = hasActive ? "active" : "none";
+                  return (
+                    <CommodityRow
+                      key={c.commodity}
+                      commodity={c.commodity}
+                      count={c.anomaly_count}
+                      avgScore={stats?.by_severity?.[0]?.avg_score || 0}
+                      alertStatus={alertStatus}
+                    />
+                  );
+                })
               ) : (
                 <div style={{ fontSize: 11, color: "#2a4a2a", padding: "20px 0" }}>
                   NO ANOMALIES IN LAST 24H
