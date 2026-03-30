@@ -53,7 +53,15 @@ def _check_valkey() -> BackendStatus:
         return BackendStatus(status="down", error=str(exc))
 
 
+_pg_cache: dict = {"status": None, "ts": 0.0}
+_PG_CACHE_TTL = 30.0  # seconds
+
+
 def _check_postgres() -> BackendStatus:
+    """PostgreSQL health check with 30s cache."""
+    now = time.monotonic()
+    if _pg_cache["status"] is not None and (now - _pg_cache["ts"]) < _PG_CACHE_TTL:
+        return _pg_cache["status"]
     try:
         from sqlalchemy import text
         from api.dependencies import get_db_engine
@@ -63,9 +71,12 @@ def _check_postgres() -> BackendStatus:
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         latency_ms = (time.monotonic() - start) * 1000
-        return BackendStatus(status="ok", latency_ms=round(latency_ms, 2))
+        result = BackendStatus(status="ok", latency_ms=round(latency_ms, 2))
     except Exception as exc:
-        return BackendStatus(status="down", error=str(exc))
+        result = BackendStatus(status="down", error=str(exc))
+    _pg_cache["status"] = result
+    _pg_cache["ts"] = time.monotonic()
+    return result
 
 
 # Kafka check cache — avoids 2-3s broker round-trip on every /health call
