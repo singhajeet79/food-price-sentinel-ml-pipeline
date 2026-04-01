@@ -1,0 +1,55 @@
+name: AI Security Scan
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main, develop]
+
+# Prevent duplicate scans on rapid pushes — cancel in-progress run for same PR
+concurrency:
+  group: security-scan-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read        # checkout code
+  pull-requests: write  # post PR comment
+
+jobs:
+  security-scan:
+    name: AI Security Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history needed for accurate diff
+
+      # ── 2. Set up Python ─────────────────────────────────────────────────────
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install scanner deps
+        run: pip install anthropic PyGithub
+
+      # ── 3. Run AI security scan ──────────────────────────────────────────────
+      - name: Run AI security scan
+        id: scan
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN:      ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER:         ${{ github.event.pull_request.number }}
+          REPO_OWNER:        ${{ github.repository_owner }}
+          REPO_NAME:         ${{ github.event.repository.name }}
+        run: python .github/scripts/security_scan.py
+
+      # ── 4. Surface outcome in CI summary ─────────────────────────────────────
+      - name: Check scan outcome
+        if: steps.scan.outputs.block_merge == 'true'
+        run: |
+          echo "::error::Security scan found CRITICAL or HIGH issues. See PR comment."
+          exit 1
