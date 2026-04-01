@@ -28,3 +28,5 @@ uvicorn[standard]==0.29.0
 
 # Utilities
 python-dateutil==2.9.0
+anthropic
+PyGithub
