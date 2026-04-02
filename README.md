@@ -93,6 +93,42 @@ This project employs a rigorous CI/CD pipeline to ensure code quality and securi
 ## 🤝 Contributing
 We welcome contributions from the MLOps and Data Engineering community! Whether you are fixing a bug in the Isolation Forest scoring or enhancing the React dashboard.
 
+### 1. Project Standards
+To maintain the integrity of our grain-price monitoring, all contributions must pass our automated quality gates:
+* **Linting & Formatting:** We strictly follow `ruff`, `black`, and `isort`. 
+* **AI Security Gate:** Every PR is audited by our Claude-powered security scanner. Ensure no secrets or unsafe SQL patterns are introduced.
+* **Pre-commit:** You **must** install and run pre-commit hooks locally before pushing.
+
+### 2. Local Development Setup
+1.  **Fork** the repository and create your branch:
+    ```bash
+    git checkout -b feature/amazing-feature
+    ```
+2.  **Install Dev Dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    pre-commit install
+    ```
+3.  **Validate Changes:**
+    Ensure your changes don't break the Kafka consumer or the FastAPI endpoints:
+    ```bash
+    # Run a local security dry-run if you have a Claude API Key
+    python3 .github/scripts/security_scan.py --local
+    ```
+
+### 3. Pull Request Process
+1.  **Atomic Commits:** Keep commits small and descriptive.
+2.  **Idempotent Comments:** Review the AI Security Scan report on your PR. If Claude flags an issue, fix it in a new commit—the bot will automatically update its report.
+3.  **Documentation:** Update the `README.md` or the MLOps e-book manifests if you add new features.
+
+### 🎯 Areas for Contribution
+- **ML Research:** Improving the `IsolationForest` hyperparameters for different grain types (e.g., Rice vs. Wheat).
+- **Infrastructure:** Adding Prometheus/Grafana dashboards for Aiven Kafka monitoring.
+- **Frontend:** Enhancing the React "Control Room" with mobile-responsive alerts.
+
+---
+*By contributing, you agree that your code will be licensed under the project's MIT License.*
+
 ---
 
 Developed by Ajeet Singh — Industrializing AI for Global Food Security.
