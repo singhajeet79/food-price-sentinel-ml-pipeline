@@ -383,7 +383,8 @@ def run() -> None:
                         )
 
                     # Track offset for manual commit
-                    offsets_to_commit[tp] = OffsetAndMetadata(msg.offset + 1, None, -1)
+                    # offsets_to_commit[tp] = OffsetAndMetadata(msg.offset + 1, None, -1)
+                    offsets_to_commit[tp] = OffsetAndMetadata(msg.offset + 1, "")
 
             # Commit after processing the full batch (at-least-once semantics)
             if offsets_to_commit:

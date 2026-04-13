@@ -1,5 +1,8 @@
 # Kafka
 confluent-kafka==2.4.0
+#kafka-python==2.0.2
+#kafka-python==2.0.2
+kafka-python-ng==2.2.2
 
 # Data validation
 pydantic==2.7.1
@@ -30,3 +33,4 @@ uvicorn[standard]==0.29.0
 python-dateutil==2.9.0
 anthropic
 PyGithub
+python-snappy==0.7.3

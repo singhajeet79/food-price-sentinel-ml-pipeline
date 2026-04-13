@@ -5,7 +5,7 @@ metadata:
   namespace: food-price-sentinel
 spec:
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce  # <--- Change this from ReadWriteMany - ReadWriteMany
   resources:
     requests:
       storage: 1Gi

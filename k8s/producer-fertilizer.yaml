@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: producer-fertilizer
+  namespace: food-price-sentinel
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: producer-fertilizer
+  template:
+    metadata:
+      labels:
+        app: producer-fertilizer
+    spec:
+      containers:
+      - name: producer
+        image: ghcr.io/singhajeet79/food-price-sentinel:latest
+        imagePullPolicy: Never
+        command: ["python", "ingestion/producer_fertilizer.py", "--interval", "300"]
+        env:
+        - name: PYTHONPATH
+          value: "/app"
+        envFrom:
+        - configMapRef:
+            name: sentinel-config
+        - secretRef:
+            name: sentinel-secrets
+        volumeMounts:
+        - name: certs
+          mountPath: /app/certs
+          readOnly: true
+      volumes:
+      - name: certs
+        secret:
+          secretName: sentinel-kafka-certs

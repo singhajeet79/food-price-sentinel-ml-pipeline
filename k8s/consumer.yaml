@@ -22,7 +22,7 @@ spec:
       containers:
         - name: consumer
           image: ghcr.io/singhajeet79/food-price-sentinel:latest
-          imagePullPolicy: Always
+          imagePullPolicy: Never
           command: ["python", "processing/consumer.py"]
           env:
             - name: PYTHONPATH

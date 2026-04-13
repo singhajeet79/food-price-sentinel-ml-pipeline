@@ -81,7 +81,7 @@ spec:
           containers:
             - name: drift-check
               image: ghcr.io/singhajeet79/food-price-sentinel:latest
-              imagePullPolicy: Always
+              imagePullPolicy: IfNotPresent
               command:
                 - python
                 - detection/drift.py

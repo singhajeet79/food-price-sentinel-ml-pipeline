@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: producer-food
+  namespace: food-price-sentinel
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: producer-food
+  template:
+    metadata:
+      labels:
+        app: producer-food
+    spec:
+      containers:
+      - name: producer
+        image: ghcr.io/singhajeet79/food-price-sentinel:latest
+        imagePullPolicy: Never
+        command: ["python", "ingestion/producer_food.py", "--interval", "60"]
+        env:
+        - name: PYTHONPATH
+          value: "/app"
+        envFrom:
+        - configMapRef:
+            name: sentinel-config
+        - secretRef:
+            name: sentinel-secrets
+        # --- ADDED THIS SECTION ---
+        volumeMounts:
+        - name: certs
+          mountPath: /app/certs
+          readOnly: true
+        # ---------------------------
+      # --- ADDED THIS SECTION (Aligned with 'containers') ---
+      volumes:
+      - name: certs
+        secret:
+          secretName: sentinel-kafka-certs
+      # ------------------------------------------------------
