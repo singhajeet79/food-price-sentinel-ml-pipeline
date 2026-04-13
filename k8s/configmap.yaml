@@ -23,5 +23,7 @@ data:
   RETRAIN_MIN_SAMPLES: "500"
   RETRAIN_DRIFT_TOLERANCE: "0.15"
   MODELS_DIR: "/app/detection/models"
+  VALKEY_HOST: "sentinel-cache-food-price-sentinel-ml.e.aivencloud.com"
+  VALKEY_PORT: "22912"
   VALKEY_TLS: "true"
   LOG_LEVEL: "INFO"
