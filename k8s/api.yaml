@@ -38,6 +38,12 @@ spec:
           env:
             - name: PYTHONPATH
               value: "/app"
+            - name: KAFKA_SSL_CAFILE
+              value: "/app/certs/ca.pem"
+            - name: KAFKA_SSL_CERTFILE
+              value: "/app/certs/service.cert"
+            - name: KAFKA_SSL_KEYFILE
+              value: "/app/certs/service.key"
           envFrom:
             - configMapRef:
                 name: sentinel-config
@@ -65,16 +71,16 @@ spec:
               path: /health
               port: 8000
             initialDelaySeconds: 60
-            periodSeconds: 30
-            timeoutSeconds: 15
+            periodSeconds: 45      # Increased for Aiven warm-up
+            timeoutSeconds: 20     # Increased based on your 11s log delay
             failureThreshold: 5
           readinessProbe:
             httpGet:
               path: /health
               port: 8000
             initialDelaySeconds: 30
-            timeoutSeconds: 10
-            periodSeconds: 20
+            timeoutSeconds: 20
+            periodSeconds: 30
             failureThreshold: 3
       volumes:
         - name: certs
