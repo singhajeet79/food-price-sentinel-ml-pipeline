@@ -21,6 +21,12 @@ spec:
         env:
         - name: PYTHONPATH
           value: "/app"
+        - name: KAFKA_SSL_CAFILE
+          value: "/app/certs/ca.pem"
+        - name: KAFKA_SSL_CERTFILE
+          value: "/app/certs/service.cert"
+        - name: KAFKA_SSL_KEYFILE
+          value: "/app/certs/service.key"
         envFrom:
         - configMapRef:
             name: sentinel-config

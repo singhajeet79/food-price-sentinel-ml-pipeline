@@ -24,7 +24,7 @@ spec:
           containers:
             - name: retrain
               image: ghcr.io/singhajeet79/food-price-sentinel:latest
-              imagePullPolicy: Always
+              imagePullPolicy: IfNotPresent
               command:
                 - python
                 - detection/retrain.py
